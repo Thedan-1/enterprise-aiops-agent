@@ -17,6 +17,8 @@ from app.core.types import Chunk
 from app.db.models import Document, DocumentChunk
 from app.rag.pipeline import RetrievalPipeline
 from app.rag.reranker import get_reranker
+from app.rag.retriever.dense import DenseRetriever
+from app.rag.retriever.sparse import SparseRetriever
 
 
 def load_chunks_and_titles(session: Session) -> tuple[list[Chunk], dict[str, str]]:
@@ -32,12 +34,14 @@ def load_chunks_and_titles(session: Session) -> tuple[list[Chunk], dict[str, str
 
 def build_retrieval_pipeline(session: Session) -> RetrievalPipeline:
     chunks, _ = load_chunks_and_titles(session)
-    return RetrievalPipeline(session, get_embedder(), get_reranker(), chunks)
+    embedder = get_embedder()
+    return RetrievalPipeline(DenseRetriever(session, embedder), SparseRetriever(chunks), get_reranker())
 
 
 def build_agent_runtime(session: Session) -> AgentRuntime:
     chunks, doc_titles = load_chunks_and_titles(session)
-    pipeline = RetrievalPipeline(session, get_embedder(), get_reranker(), chunks)
+    embedder = get_embedder()
+    pipeline = RetrievalPipeline(DenseRetriever(session, embedder), SparseRetriever(chunks), get_reranker())
 
     tools = [
         KnowledgeSearchTool(pipeline, doc_titles),

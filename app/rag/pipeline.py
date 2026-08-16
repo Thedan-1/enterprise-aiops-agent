@@ -6,16 +6,20 @@
 """
 import time
 from dataclasses import asdict, dataclass, field
+from typing import Protocol
 
-from sqlalchemy.orm import Session
-
-from app.core.embedder import Embedder
-from app.core.types import Chunk, Evidence, ScoredChunk
+from app.core.types import Evidence, ScoredChunk
 from app.rag.context_builder import build_evidence
 from app.rag.reranker import Reranker
-from app.rag.retriever.dense import DenseRetriever
 from app.rag.retriever.hybrid import reciprocal_rank_fusion
-from app.rag.retriever.sparse import SparseRetriever
+
+
+class DenseSearcher(Protocol):
+    def search(self, query: str, top_k: int) -> list[ScoredChunk]: ...
+
+
+class SparseSearcher(Protocol):
+    def search(self, query: str, top_k: int) -> list[ScoredChunk]: ...
 
 
 @dataclass
@@ -43,10 +47,15 @@ def _to_dict_list(scored: list[ScoredChunk]) -> list[dict]:
 
 
 class RetrievalPipeline:
-    def __init__(self, session: Session, embedder: Embedder, reranker: Reranker, all_chunks: list[Chunk]):
-        self.session = session
-        self.dense = DenseRetriever(session, embedder)
-        self.sparse = SparseRetriever(all_chunks)
+    """Dense/Sparse 检索器通过依赖注入传入，Pipeline本身不关心它们是连Postgres
+    还是纯内存实现——这样生产环境(DenseRetriever+pgvector)和离线开发/测试环境
+    (InMemoryDenseRetriever)可以复用完全相同的Fusion/Rerank/Evidence逻辑，
+    只在最外层(runtime_factory.py / scripts/offline_demo.py)决定注入哪一个。
+    """
+
+    def __init__(self, dense_retriever: DenseSearcher, sparse_retriever: SparseSearcher, reranker: Reranker):
+        self.dense = dense_retriever
+        self.sparse = sparse_retriever
         self.reranker = reranker
 
     def retrieve(

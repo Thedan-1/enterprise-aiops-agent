@@ -144,6 +144,20 @@ Agent不停止
 - **Trade-offs**: 默认Provider语义能力弱，评测数字不能代表生产级效果，必须在报告中明确标注
 - **When to change**: 配置真实API Key后通过环境变量切换，接口不变
 
+### ADR-005: KnowledgeSearchTool 对 Reranker 分数做最低阈值过滤（真实运行中发现的问题）
+- **Decision**: `RERANKER_MIN_SCORE`（默认0.5）作为证据是否可用的硬阈值，低于阈值的候选不进入Evidence
+- **Why**: 离线联调时发现一个真实缺陷——Retrieval本身对任何query都会返回Top-K结果（哪怕全部不相关），
+  如果Tool把这些结果原样当作"检索到证据"传给Agent，Validator会误判为"有KB证据"从而不触发Abstention。
+  用真实数据验证：相关query的rerank分数集中在0.53~0.70，不相关query（"年假申请流程""K8s怎么配HPA"）
+  的分数集中在0.40~0.46，两者有可观察的区间差异，但样本量小（4条），**这个阈值是初步校准，
+  不是严格统计意义上的最优值**，后续应该用完整30条评测集做ROC分析进一步校准
+- **Alternatives**: 让LLM在生成答案阶段自己判断"这些证据是否相关"（不可靠，LLM对无关证据也可能强行编答案，
+  这正是幻觉的来源）；对Reranker做二分类微调输出相关性概率（更准确但需要标注数据和训练成本，MVP阶段不值得）
+- **Trade-offs**: 阈值设置过高会误伤真正相关但表述差异大的语义类问题(Recall下降)；设置过低起不到过滤作用。
+  这个过滤发生在Tool层而不是Pipeline层——Pipeline的职责是排序，"多相关才算相关"是应用层策略，两者不应该耦合
+- **When to change**: 换成真实Embedding模型和真实Cross-Encoder Reranker后，分数分布会完全不同，
+  阈值必须重新校准，不能沿用mock_hash/heuristic下标定的0.5
+
 ### ADR-004: 不使用Redis
 - **Decision**: MVP不引入缓存层
 - **Why**: 没有实测出的缓存收益场景，提前引入是过度工程化

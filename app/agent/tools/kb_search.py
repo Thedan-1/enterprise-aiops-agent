@@ -20,9 +20,15 @@ class KnowledgeSearchTool(Tool):
             top_k_final=top_k or settings.retriever_top_k_final,
             doc_titles=self.doc_titles,
         )
-        if not output.evidence:
+        # Reranker分数低于阈值的证据被丢弃：Retrieval本身总会返回topK(哪怕全部不相关)，
+        # 真正决定"这算不算相关证据"是这一层的职责，不是Pipeline的职责——这是Abstention
+        # 真正生效的关键点，缺了这一步Recall会显得很高但其实是在拿不相关内容硬凑答案。
+        # 见 docs/architecture.md ADR-005 和 docs/project_management.md 幻觉排查树。
+        relevant_evidence = [e for e in output.evidence if e.score >= settings.reranker_min_score]
+
+        if not relevant_evidence:
             return ToolResult(success=True, summary="知识库未检索到相关文档", evidence=[], debug=output.debug.as_dict())
-        summary = f"检索到{len(output.evidence)}条相关证据，来源：" + "、".join(
-            sorted({e.source for e in output.evidence})
+        summary = f"检索到{len(relevant_evidence)}条相关证据，来源：" + "、".join(
+            sorted({e.source for e in relevant_evidence})
         )
-        return ToolResult(success=True, summary=summary, evidence=output.evidence, debug=output.debug.as_dict())
+        return ToolResult(success=True, summary=summary, evidence=relevant_evidence, debug=output.debug.as_dict())

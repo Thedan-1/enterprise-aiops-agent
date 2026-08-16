@@ -1,0 +1,223 @@
+{
+  "provider": {
+    "embedder": "mock_hash",
+    "reranker": "heuristic",
+    "llm": "mock"
+  },
+  "n_docs": 9,
+  "n_chunks_baseline": 43,
+  "baseline_retrieval": {
+    "n": 30,
+    "overall_recall": 0.8933,
+    "overall_precision": 0.3539,
+    "overall_mrr": 0.7533,
+    "by_category": {
+      "keyword": {
+        "n": 10,
+        "recall": 1.0,
+        "precision": 0.4083,
+        "mrr": 0.7667
+      },
+      "multi_evidence": {
+        "n": 5,
+        "recall": 0.6667,
+        "precision": 0.4,
+        "mrr": 0.6667
+      },
+      "not_in_kb": {
+        "n": 5,
+        "recall": null,
+        "precision": 0.0,
+        "mrr": null,
+        "empty_result_rate": 0.0
+      },
+      "semantic": {
+        "n": 10,
+        "recall": 0.9,
+        "precision": 0.4533,
+        "mrr": 0.7833
+      }
+    }
+  },
+  "chunk_size_experiment": {
+    "256": {
+      "n_chunks": 47,
+      "recall": 0.8533,
+      "precision": 0.3789,
+      "mrr": 0.72
+    },
+    "512": {
+      "n_chunks": 43,
+      "recall": 0.8933,
+      "precision": 0.3539,
+      "mrr": 0.7533
+    },
+    "1024": {
+      "n_chunks": 42,
+      "recall": 0.8933,
+      "precision": 0.3594,
+      "mrr": 0.7533
+    }
+  },
+  "retrieval_strategy_experiment": {
+    "dense_only": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1389,
+      "overall_mrr": 0.769,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1347,
+          "mrr": 0.8167
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2444,
+          "mrr": 0.6333
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1597,
+          "mrr": 0.7893
+        }
+      }
+    },
+    "bm25_only": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1681,
+      "overall_mrr": 0.8867,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1861,
+          "mrr": 0.8833
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2639,
+          "mrr": 0.8667
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1863,
+          "mrr": 0.9
+        }
+      }
+    },
+    "hybrid": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1384,
+      "overall_mrr": 0.7633,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1361,
+          "mrr": 0.8167
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2444,
+          "mrr": 0.7167
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1569,
+          "mrr": 0.7333
+        }
+      }
+    }
+  },
+  "agent_demo": [
+    {
+      "query": "order-service最近大量出现502，帮我分析可能原因并给出排查步骤",
+      "intent": "diagnosis",
+      "status": "answered",
+      "confidence": 1.0,
+      "iterations": 3,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：Nginx 502/504 网关错误排查指南、历史故障复盘：order-service 大量 502"
+        },
+        {
+          "tool": "service_metrics",
+          "success": true,
+          "summary": "order-service 状态异常: CPU 78%, Memory 65%, QPS 342, ErrorRate 18.0%, P95 2400ms"
+        },
+        {
+          "tool": "log_query",
+          "success": true,
+          "summary": "order-service 在 last_10_minutes 内发现 3 条ERROR日志: 2026-08-17T10:12:03Z ERROR order-service: upstream timeout connecting to payment-service (504) | 2026-08-17T10:12:05Z ERROR order-service: nginx upstream prematurely closed connection while reading response header from upstream, client: 10.0.2.11, upstream: order-service:8080 | 2026-08-17T10:12:11Z ERROR order-service: connection pool exhausted, waited 5000ms for available connection"
+        }
+      ],
+      "answer": "诊断结论（基于以下证据综合得出，MockLLM生成，仅验证流程）：\n\n[knowledge_search] 检索到5条相关证据，来源：Nginx 502/504 网关错误排查指南、历史故障复盘：order-service 大量 502\n[service_metrics] order-service 状态异常: CPU 78%, Memory 65%, QPS 342, ErrorRate 18.0%, P95 2400ms\n[log_query] order-service 在 last_10_minutes 内发现 3 条ERROR日志: 2026-08-17T10:12:03Z ERROR order-service: upstream timeout connecting to payment-service (504) | 2026-08-17T10:12:05Z ERROR order-service: nginx upstream prematurely closed connection while reading response header from upstream, client: 10.0.2.11, upstream: order-service:8080 | 2026-08-17T10:12:11Z ERROR order-service: connection pool exhausted, waited 5000ms for available connection\n\n引用来源：\n  - [历史故障复盘：order-service 大量 502] [排查过程]\n1. 首先查看 Nginx 日志，发现大量 `upstream prematurely closed connection` 和少量 `upstr...\n  - [历史故障复盘：order-service 大量 502] [故障现象]\norder-service 在约10分钟内出现大量 502 Bad Gateway，用户下单请求失败率骤增。同期监控显示 order-servic...\n  - [历史故障复盘：order-service 大量 502] [这个案例的价值]\n这是级联故障（cascading failure）的典型样本：症状出现在order-service（502），根因在两跳之外的第三方支付网关...\n  - [Nginx 502/504 网关错误排查指南] [排查步骤]\n1. 查看 Nginx error.log，确认是 `upstream prematurely closed connection` 还是 `up...\n  - [历史故障复盘：order-service 大量 502] [排查过程]\nnt-service，payment-service变慢导致order-service处理订单请求的耗时被拉长，请求在数据库连接持有期间堆积，最终..."
+    },
+    {
+      "query": "什么是缓存穿透",
+      "intent": "knowledge_qa",
+      "status": "answered",
+      "confidence": 0.65,
+      "iterations": 1,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：Nginx 502/504 网关错误排查指南、Redis 常见故障模式"
+        }
+      ],
+      "answer": "诊断结论（基于以下证据综合得出，MockLLM生成，仅验证流程）：\n\n[knowledge_search] 检索到5条相关证据，来源：Nginx 502/504 网关错误排查指南、Redis 常见故障模式\n\n引用来源：\n  - [Redis 常见故障模式] [缓存穿透（Cache Penetration）]\n请求查询一个数据库和缓存里都不存在的 key，每次都会绕过缓存直接打到数据库。如果被恶意/大量请求不存在的 ...\n  - [Redis 常见故障模式] [缓存击穿（Cache Breakdown）]\n一个热点 key 在缓存中过期的瞬间，大量并发请求同时穿透到数据库，瞬间压垮数据库。\n\n应对：热点key设置永不...\n  - [Redis 常见故障模式] [缓存雪崩（Cache Avalanche）]\n大量 key 在同一时间集中过期，或者 Redis 实例本身宕机，导致所有请求同时穿透到数据库。\n\n应对：给不同...\n  - [Nginx 502/504 网关错误排查指南] [什么是502 Bad Gateway]\n502 表示 Nginx（作为反向代理/网关）从上游服务（upstream）收到了无效响应，或者上游连接在响应过程中被...\n  - [Nginx 502/504 网关错误排查指南] [什么是504 Gateway Timeout]\n504 表示 Nginx 在 `proxy_read_timeout` / `proxy_connect_ti..."
+    },
+    {
+      "query": "公司的年假申请流程是什么",
+      "intent": "knowledge_qa",
+      "status": "answered",
+      "confidence": 0.65,
+      "iterations": 1,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：Nginx 502/504 网关错误排查指南、payment-service 服务文档、微服务故障排查通用 SOP"
+        }
+      ],
+      "answer": "诊断结论（基于以下证据综合得出，MockLLM生成，仅验证流程）：\n\n[knowledge_search] 检索到5条相关证据，来源：Nginx 502/504 网关错误排查指南、payment-service 服务文档、微服务故障排查通用 SOP\n\n引用来源：\n  - [payment-service 服务文档] [POST /api/payments/pre-authorize]\n支付预授权，被 order-service 在创建订单流程中同步调用。...\n  - [Nginx 502/504 网关错误排查指南] [什么是504 Gateway Timeout]\n504 表示 Nginx 在 `proxy_read_timeout` / `proxy_connect_ti...\n  - [Nginx 502/504 网关错误排查指南] [排查步骤]\n1. 查看 Nginx error.log，确认是 `upstream prematurely closed connection` 还是 `up...\n  - [Nginx 502/504 网关错误排查指南] [什么是502 Bad Gateway]\n502 表示 Nginx（作为反向代理/网关）从上游服务（upstream）收到了无效响应，或者上游连接在响应过程中被...\n  - [微服务故障排查通用 SOP] [第一步：确认影响范围]\n- 是单个服务还是多个服务同时异常？\n- 是全部用户还是部分用户/部分地域？\n- 从什么时间点开始的？是否和发布/配置变更/流量突增的..."
+    }
+  ]
+}

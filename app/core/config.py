@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     retriever_top_k_final: int = 5
 
     reranker_provider: str = "heuristic"  # heuristic（默认，无外部依赖） | cross_encoder
+    reranker_min_score: float = 0.5  # 低于此分数的证据视为"不相关"，不进Evidence（见ADR-005，防止幻觉的关键阈值）
 
 
 settings = Settings()
