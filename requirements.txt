@@ -11,6 +11,10 @@ python-dotenv==1.0.1
 pytest==8.3.3
 httpx==0.27.2
 
-# 可选：真实 Provider 依赖，未配置对应API Key时不会被导入
+# 真实 Embedder/Reranker（EMBEDDER_PROVIDER=local_st / RERANKER_PROVIDER=cross_encoder）
+# 会拉取torch，体积较大；只用mock_hash/heuristic占位实现的话可以不装
+sentence-transformers==5.7.0
+
+# 可选：真实 LLM Provider 依赖，未配置对应API Key时不会被导入
 # anthropic==0.34.2
 # openai==1.51.0

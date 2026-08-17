@@ -1,9 +1,18 @@
 # 实验结果记录（真实运行，非编造）
 
-运行时间：2026-08-17
-运行方式：`python scripts/offline_demo.py`（离线内存版Pipeline，原因见下方"运行环境说明"）
-Provider：`EMBEDDER=mock_hash RERANKER=heuristic LLM=mock`（占位实现，见下方"如何解读这些数字"）
+运行时间：2026-08-17（本文档记录了同一天内多轮迭代，Provider从全占位逐步换成全真实，
+每一轮都标注了当时用的Provider，方便对比"占位实现"和"真实模型"的结果差异——这种对比
+本身就是这个项目里很有价值的一部分，不是噪音，保留全部历史轮次不做删减）
 数据：9篇原创mock文档，chunk_size=512时切成43个chunk；30条评测集（10关键词/10语义/5多证据/5知识库外）
+
+**最新状态（跳到文末"换成真实模型后重跑全部实验"一节看最终结果）**：
+`EMBEDDER=local_st(bge-small-zh-v1.5) RERANKER=cross_encoder(bge-reranker-base) LLM=deepseek`，
+三个核心组件都已经是真实模型/真实API，不再是占位实现。以下第一部分是最早那一轮
+全Mock/占位实现的记录，保留作为对比基线。
+
+---
+
+## 第一轮：全占位实现（EMBEDDER=mock_hash RERANKER=heuristic LLM=mock）
 
 ## 运行环境说明（重要，如实记录）
 
@@ -200,9 +209,101 @@ tool_budget而不是max_iterations——这是从真实数据里读出来的，�
 4. **Ticket工单Tool**（第4个工具）——完整实现+独立单测，接入Agent工具列表
 5. 测试总数：从24个单元测试，增加到 **33个单元测试 + 4个集成测试 = 37个，全部通过**
 
+## 换成真实模型后重跑全部实验（2026-08-17，最重要的一轮验证）
+
+Provider 切换：`EMBEDDER_PROVIDER=local_st`（`BAAI/bge-small-zh-v1.5`，本地开源中文模型，
+通过 `sentence-transformers` 加载，不需要任何API Key）、`RERANKER_PROVIDER=cross_encoder`
+（`BAAI/bge-reranker-base`，同样本地加载）、`LLM_PROVIDER=deepseek`（已在上一轮接入）。
+**这是本项目第一次三个核心组件都是真实模型，之前所有数字都是占位Embedder/Reranker跑出来的。**
+
+DeepSeek 没有 Embedding API（实测调用 `/embeddings` 返回404，不是猜测），所以没用它做
+Embedder；改用本地开源模型，好处是不需要额外申请Key，中文效果也更有针对性。
+
+### 阈值重新校准：RERANKER_MIN_SCORE 从 0.5 改成 0.3
+
+CrossEncoder的分数分布和heuristic reranker完全不同量级，用几条真实query实测：
+
+| Query | 真实性质 | Top-5 rerank分数 |
+|---|---|---|
+| 公司的年假申请流程 | 知识库外 | 0.0003 ~ 0.006 |
+| Kubernetes HPA配置 | 知识库外 | 0.04 ~ 0.14 |
+| 什么是缓存穿透 | 知识库内(有直接文档) | 0.02 ~ 0.99 |
+| 订单服务502 | 知识库内(有专门postmortem) | 0.988 ~ 0.999 |
+| MySQL主从复制延迟 | 知识库外(但话题相邻:都是数据库) | 0.33 ~ 0.57 |
+
+选了0.3作为阈值。**如实标注一个已知局限**：MySQL主从复制这条，最高分0.57，会被0.3阈值
+误判成"有相关证据"通过——这是Reranker单一分数阈值挡不住的"话题相邻但实际不对"的情况，
+但这正是 ADR-007 加的 Evidence Relevance 二次判断（用DeepSeek做真正的语义判断）存在的
+意义：即使Reranker这一层漏判，Validator那一层大概率能纠正。这是"多层防护"而不是
+"单点指望某一层做到完美"的设计思路，这次调参过程本身印证了当初这个设计决定是对的。
+
+### Retrieval Baseline（30条评测集）：Recall@5=0.8333, Precision@5=0.3189, MRR=0.808
+
+对比之前占位Embedder/Reranker的数字（Recall=0.8933, MRR=0.7533）：**Recall略降，MRR明显提升**。
+如实分析：Recall下降大概率是因为真实语义Embedding对"语义相关但字面无关"的内容判断更严格
+（mock_hash本质是字面重合度，反而在我们这批"文档本身包含关键词"的mock数据上意外地"作弊性"地
+表现不错）；MRR提升说明真实模型把最相关的结果排得更靠前——这才是更接近真实生产场景的信号。
+
+### Chunk Size 实验：256=0.8733, 512=0.8333, 1024=0.8733（对比占位Embedder下512/1024最优）
+
+**换了真实Embedder后结论变了**——之前占位Embedder下是"512和1024明显优于256"，现在是
+"256和1024都优于512，512反而最差"。**这恰恰验证了 architecture.md 反复强调的一点：
+Chunk Size不是可以脱离Embedder单独下结论的固定参数，Embedder一换，最优Chunk Size的
+结论也可能跟着变**，之前用占位Embedder得出的"512最优"结论，现在看是不可靠的，
+这次的对比实验本身就是一个很好的证据。当前样本量(43个chunk)下这个结论同样不能
+过度解读，但"换Embedder后最优chunk size会变"这个现象本身是真实观察到的。
+
+### Dense/BM25/Hybrid 实验：Hybrid MRR=0.9067，首次真正超过单路（占位Embedder下曾是BM25领先）
+
+用真实Embedder后：dense=0.8833, bm25=0.8867, **hybrid=0.9067**——这次Hybrid的MRR
+确实是三者中最高的，和"Hybrid应该更好"的理论预期一致了。**对比上一轮用mock_hash
+Embedder时"BM25反而比Hybrid的MRR更高"的反直觉结果**：那次的反常很可能就是mock_hash
+语义能力太弱、Dense通道引入了噪声拖累了融合结果，这次换真实Embedder后Dense通道的
+质量上去了，Hybrid的互补优势才体现出来——这组"占位vs真实"的对比本身就是一个很有
+说服力的证据，证明"Embedder质量直接决定了Hybrid策略是否值得用"，不是一个孤立的选择。
+
+### Reranker 有无对比：**意外结果，如实记录，没有回避**
+
+| | Recall | Precision | MRR |
+|---|---|---|---|
+| 有 Reranker (真实 bge-reranker-base) | 0.8333 | 0.3189 | 0.808 |
+| 无 Reranker (直接截Fusion Top5) | **0.9133** | **0.3389** | **0.9067** |
+
+**真实Cross-Encoder Reranker反而比不重排效果差，三项指标全面落后。** 这和"Reranker应该
+提升精排质量"的常识不符，必须诚实分析而不是找借口回避：
+1. **样本量太小**：30条评测集、43个chunk的知识库，Fusion阶段的RRF排序在这个规模下
+   已经接近"信息饱和"，重排的边际收益本来就有限，一旦Reranker的判断和我们的
+   ground_truth标注口径有系统性偏差，很容易在小样本上表现为"净负贡献"
+2. **bge-reranker-base是通用领域模型，没有针对运维/技术文档场景做过微调**：我们的
+   mock文档是原创的、风格比较口语化的技术笔记，和该模型训练/评测常见的网页问答语料
+   风格有差异，模型的相关性判断在这批数据上不一定准
+3. **Ground Truth标注口径的局限**：eval_cases.json的ground_truth是文档级别（哪个文档
+   包含答案），Cross-Encoder是在chunk级别做真正的语义相关性判断，两者衡量的粒度不同，
+   可能出现"Cross-Encoder判断某chunk在语义上不够聚焦从而排名靠后，但该chunk所在的
+   文档确实是ground truth"这种评测口径错位
+
+**结论**：在真实模型条件下，这批实验数据不支持"加Reranker一定更好"这个结论，需要
+更大规模的知识库和评测集才能验证Reranker的真实价值。这是这个项目目前为止最重要的
+一条"理论预期与实测数据不符"的记录——**没有为了让项目"看起来更完整"而拿掉这组数据
+或者编一个牵强的理由说明Reranker其实有用**，如实呈现是这个项目故意坚持的原则。
+
+### Agent Demo + Max Iterations：真实模型下Agent效率明显提升
+
+- "年假申请流程"这条：从换真实模型前的"2次knowledge_search才abstain"，变成
+  "1次knowledge_search就正确abstain"——真实Embedder+Reranker一次就能准确判断不相关，
+  不需要Agent自己反复试探
+- Max Iterations实验的自然收敛率：从上一轮(占位Embedder+Reranker) 2/6 提升到本轮 5/6，
+  平均延迟也从30~47秒降到20~31秒——检索质量提升后，Agent不需要那么多轮"探索性"调用
+  就能拿到足够证据，这是Retrieval质量对Agent Loop效率的直接影响，是一个很好的
+  "RAG质量如何影响Agent表现"的真实案例
+
 ## 尚未完成的实验（诚实标注，不伪造）
 
-- 真实Embedding模型（非mock_hash）和真实Cross-Encoder Reranker下重跑全部实验——
-  这是最重要的后续验证，因为当前所有Retrieval数字都建立在占位Embedder/Reranker之上
-- Agent Run延迟优化（P50/P95）——当前30~47秒/次主要是LLM串行调用开销，
-  没有做过并行化或流式输出方面的优化，也没有正式测过P50/P95分布（上面只是6次单样本）
+- [x] ~~真实Embedding模型和真实Cross-Encoder Reranker下重跑全部实验~~ —— 已完成，见上方
+  "换成真实模型后重跑全部实验"一节，且发现了一个重要的反直觉结果（Reranker没有带来提升）
+- Agent Run延迟优化（P50/P95）——真实模型下已降到20~31秒/次，仍然主要是LLM串行调用开销，
+  还没做并行化/流式输出优化，也没有正式测过P50/P95分布（目前只是个位数的单样本观察）
+- **Reranker反直觉结果的根因排查**——需要更大规模知识库（几百~几千chunk）和更大评测集
+  重新验证，当前样本量下无法判断是Reranker模型本身不适合这个场景，还是评测口径/样本量的问题
+- Agent的多轮对话能力还没测试过（目前的demo都是单轮问答，Conversation/Message表已经设计
+  但没有实际跑过多轮场景）

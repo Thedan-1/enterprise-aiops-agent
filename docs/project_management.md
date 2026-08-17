@@ -192,6 +192,21 @@ Agent不停止
   合并进generate_answer的同一次调用里（一次调用里既生成答案又输出relevant字段），
   用结构化输出减少一次往返，当前为了让Validator逻辑独立可测试，先保持两次调用
 
+### ADR-008: 换真实模型后 RERANKER_MIN_SCORE 从 0.5 重新校准为 0.3，且发现Reranker本身效果存疑
+- **Decision**: 切换到真实Embedder(`local_st`/`bge-small-zh-v1.5`)和真实Reranker
+  (`cross_encoder`/`bge-reranker-base`)后，`RERANKER_MIN_SCORE`从0.5改成0.3（真实
+  CrossEncoder分数分布和heuristic reranker完全不是一个量级）
+- **Why**: 实测5条真实query的分数分布后校准（见 experiment_results.md），同时**用真实
+  模型重跑Reranker有无对比实验后，发现真实Cross-Encoder Reranker在当前评测集上反而让
+  Recall/Precision/MRR全面下降**，不是预期中的提升
+- **Alternatives**: 保留Reranker但调整候选池大小/精排数量；换更大的Reranker模型
+  （bge-reranker-large）；不用Reranker，直接用Fusion结果
+- **Trade-offs**: 如实记录了这个反直觉结果而不是回避或"调出一个好看的数字"——当前证据
+  不支持"这个场景下Reranker值得用"这个结论，但样本量太小（30条评测集/43个chunk）不能
+  证明"Reranker在这类场景下就是没用的"，两者是不同的结论，不能混为一谈
+- **When to change**: 知识库规模扩大到几百~几千chunk、评测集扩大到100+条后重新做这组对比，
+  如果那时候Reranker仍然是负贡献，才能真正下"这个Reranker在这个场景不适用"的结论
+
 ### ADR-004: 不使用Redis
 - **Decision**: MVP不引入缓存层
 - **Why**: 没有实测出的缓存收益场景，提前引入是过度工程化

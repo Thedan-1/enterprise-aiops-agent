@@ -6,6 +6,12 @@ get_session。AgentRuntime本身是真的（真实Pipeline+真实MockLLMClient+�
 3个Tool），只有"连数据库持久化"这一步换成FakeSession——这样测的是
 "HTTP请求进来 -> Agent真的跑一遍 -> 响应契约对不对 -> 持久化代码路径
 有没有抛异常"，而不是简单mock掉整个Agent只测路由能不能通。
+
+Embedder/Reranker 故意用 MockHashEmbedder/HeuristicReranker 显式构造，而不是
+调用 get_embedder()/get_reranker()（会读.env当前配置）——测试套件的行为不应该
+依赖"运行测试时.env里配的是mock还是真实模型"这种环境状态,换成真实Cross-Encoder
+后单跑这个文件要多花一分钟加载模型,拖慢了本该几秒钟跑完的集成测试,和单元测试
+应该"快、确定性、不依赖外部环境"的原则冲突。
 """
 import uuid
 
@@ -19,10 +25,10 @@ from app.agent.tools.log_query import LogQueryTool
 from app.agent.tools.service_metrics import ServiceMetricsTool
 from app.agent.tools.ticket_search import TicketSearchTool
 from app.api.chat import get_agent_runtime, router
-from app.core.embedder import get_embedder
+from app.core.embedder import MockHashEmbedder
 from app.core.llm_client import MockLLMClient
 from app.db.session import get_session
-from app.rag.reranker import get_reranker
+from app.rag.reranker import HeuristicReranker
 from scripts.offline_demo import build_pipeline, load_and_chunk
 
 
@@ -50,7 +56,7 @@ class FakeSession:
 @pytest.fixture(scope="module")
 def client():
     chunks, doc_titles = load_and_chunk(chunk_size=512, overlap=50)
-    pipeline = build_pipeline(chunks, get_embedder(), get_reranker())
+    pipeline = build_pipeline(chunks, MockHashEmbedder(), HeuristicReranker())
     tools = [KnowledgeSearchTool(pipeline, doc_titles), LogQueryTool(), ServiceMetricsTool(), TicketSearchTool()]
     runtime = AgentRuntime(MockLLMClient(), tools, max_iterations=5, timeout_s=30.0)
 
