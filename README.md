@@ -48,6 +48,17 @@ python eval/run_eval.py --with-agent   # 跑Retrieval评测 + Agent评测（走D
 uvicorn app.main:app --reload          # 启动API, POST /api/chat {"query": "..."}
 ```
 
+### 方式C：浏览器里直接对话（不需要Docker/Postgres，有界面）
+
+```bash
+uvicorn app.offline_app:app --host 127.0.0.1 --port 8001
+```
+
+打开 `http://127.0.0.1:8001`。复用方式A的内存版Pipeline，不做数据库持久化（这是它和
+`app/main.py`唯一的功能性差异，Agent行为完全一致）。界面左侧是架构Pipeline示意图和
+系统状态，右侧对话区域能看到每次问答的置信度、状态（已回答/已拒答）、完整的工具调用
+轨迹（含每条证据的rerank分数）。首次问答用的是真实DeepSeek，单次耗时15~40秒。
+
 ## 目录结构
 
 见 `docs/architecture.md` 第6节。

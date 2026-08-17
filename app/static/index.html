@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>企业智能运维诊断 Agent</title>
+<style>
+  :root {
+    --bg: #08090d;
+    --bg-2: #0d0f16;
+    --panel: #12141c;
+    --panel-2: #171a24;
+    --panel-3: #1d212c;
+    --border: #262b38;
+    --border-soft: #1c2029;
+    --text: #eef1f6;
+    --text-dim: #aab2c0;
+    --muted: #6c7688;
+    --accent: #6ea8fe;
+    --accent-strong: #4f8cf0;
+    --accent-glow: rgba(110, 168, 254, 0.18);
+    --green: #3ddc84;
+    --green-dim: #17351f;
+    --amber: #f0b429;
+    --amber-dim: #3a2d0f;
+    --red: #ff6b6b;
+    --red-dim: #3a1717;
+    --mono: "SF Mono", "Cascadia Code", ui-monospace, Consolas, monospace;
+    --sans: -apple-system, "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(110,168,254,0.07), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(61,220,132,0.05), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  #app { display: flex; height: 100vh; }
+
+  /* ---------- Sidebar ---------- */
+  #sidebar {
+    width: 300px; flex-shrink: 0; background: var(--bg-2); border-right: 1px solid var(--border-soft);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .brand { padding: 22px 20px 18px; border-bottom: 1px solid var(--border-soft); }
+  .brand-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+  .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); flex-shrink: 0; }
+  .brand-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+
+  .side-section { padding: 18px 20px; border-bottom: 1px solid var(--border-soft); }
+  .side-label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    font-weight: 700; margin-bottom: 12px;
+  }
+
+  .pipeline { display: flex; flex-direction: column; gap: 2px; }
+  .pl-node {
+    display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px;
+    font-size: 12px; color: var(--text-dim); position: relative;
+  }
+  .pl-node .pl-icon {
+    width: 22px; height: 22px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--muted);
+  }
+  .pl-node .pl-icon svg { width: 13px; height: 13px; }
+  .pl-line { width: 1px; height: 10px; background: var(--border); margin-left: 19px; }
+  .pl-node.active .pl-icon { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+  .pl-node.active { color: var(--text); }
+  .pl-node.done .pl-icon { background: var(--green-dim); border-color: #1f5c34; color: var(--green); }
+  .pl-node.done { color: var(--text-dim); }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-box { background: var(--panel); border: 1px solid var(--border-soft); border-radius: 10px; padding: 10px 12px; }
+  .stat-num { font-size: 17px; font-weight: 700; font-family: var(--mono); }
+  .stat-label { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+
+  .provider-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; }
+  .provider-row .k { color: var(--muted); }
+  .provider-row .v { font-family: var(--mono); color: var(--accent); }
+
+  .examples-list { display: flex; flex-direction: column; gap: 6px; }
+  .example-item {
+    font-size: 12.5px; color: var(--text-dim); background: var(--panel); border: 1px solid var(--border-soft);
+    padding: 9px 11px; border-radius: 9px; cursor: pointer; transition: all .15s; line-height: 1.4;
+  }
+  .example-item:hover { border-color: var(--accent); color: var(--text); background: var(--panel-2); }
+
+  /* ---------- Main ---------- */
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #topbar {
+    padding: 14px 24px; border-bottom: 1px solid var(--border-soft); display: flex;
+    align-items: center; justify-content: space-between; flex-shrink: 0; background: var(--bg);
+  }
+  #topbar .title { font-size: 13.5px; font-weight: 600; color: var(--text-dim); }
+  #status-pill {
+    font-size: 11px; padding: 5px 11px; border-radius: 999px; font-family: var(--mono);
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted); display: flex; align-items: center; gap: 6px;
+  }
+  #status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  #status-pill.ready { color: var(--green); border-color: #1f5c34; }
+  #status-pill.ready .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  #status-pill.error { color: var(--red); border-color: #5c1f1f; }
+  #status-pill.error .dot { background: var(--red); }
+
+  #messages {
+    flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 18px;
+  }
+  .msg { max-width: 82%; animation: rise .25s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.user { align-self: flex-end; }
+  .msg.agent { align-self: flex-start; width: 82%; }
+
+  .bubble-user {
+    background: linear-gradient(135deg, var(--accent-strong), #3d6fd0); color: #fff; padding: 11px 16px;
+    border-radius: 16px 16px 4px 16px; font-size: 14px; line-height: 1.55; box-shadow: 0 4px 14px rgba(79,140,240,.25);
+  }
+
+  .agent-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  }
+  .agent-card-head {
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border-soft); background: var(--panel-2);
+  }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 700; letter-spacing: 0.01em; }
+  .badge.answered { background: var(--green-dim); color: var(--green); }
+  .badge.abstained { background: var(--amber-dim); color: var(--amber); }
+  .badge.error { background: var(--red-dim); color: var(--red); }
+  .meta { font-size: 11px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+  .conf-bar-wrap { flex: 1; min-width: 90px; display: flex; align-items: center; gap: 7px; }
+  .conf-bar { flex: 1; height: 5px; background: var(--border-soft); border-radius: 3px; overflow: hidden; }
+  .conf-bar-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+  .agent-answer {
+    padding: 16px 18px; font-size: 14px; line-height: 1.75; word-wrap: break-word;
+  }
+  .agent-answer h1, .agent-answer h2, .agent-answer h3 { font-size: 13.5px; margin: 14px 0 6px; color: var(--accent); }
+  .agent-answer h1:first-child, .agent-answer h2:first-child, .agent-answer h3:first-child { margin-top: 0; }
+  .agent-answer strong { color: var(--text); }
+  .agent-answer code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12.5px; }
+  .agent-answer ul, .agent-answer ol { margin: 4px 0; padding-left: 20px; }
+  .agent-answer li { margin: 3px 0; }
+  .agent-answer p { margin: 6px 0; }
+  .agent-answer hr { border: none; border-top: 1px solid var(--border-soft); margin: 12px 0; }
+
+  details.tools { border-top: 1px solid var(--border-soft); font-size: 12px; }
+  details.tools summary {
+    padding: 10px 16px; cursor: pointer; color: var(--muted); user-select: none;
+    font-family: var(--mono); display: flex; align-items: center; gap: 8px; list-style: none;
+  }
+  details.tools summary::-webkit-details-marker { display: none; }
+  details.tools summary::before { content: "▸"; transition: transform .15s; }
+  details.tools[open] summary::before { transform: rotate(90deg); }
+  details.tools summary:hover { color: var(--text); }
+
+  .tool-timeline { padding: 4px 16px 14px; display: flex; flex-direction: column; }
+  .tool-item { display: flex; gap: 12px; position: relative; }
+  .tool-item .rail { display: flex; flex-direction: column; align-items: center; }
+  .tool-icon {
+    width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; background: var(--panel-2); border: 1px solid var(--border); z-index: 1;
+  }
+  .tool-icon.ok { background: var(--green-dim); border-color: #1f5c34; color: var(--green); }
+  .tool-icon.fail { background: var(--red-dim); border-color: #5c1f1f; color: var(--red); }
+  .tool-icon svg { width: 14px; height: 14px; }
+  .rail-line { flex: 1; width: 1px; background: var(--border); margin: 2px 0; min-height: 10px; }
+  .tool-body { flex: 1; padding-bottom: 16px; min-width: 0; }
+  .tool-head-row { display: flex; align-items: center; gap: 8px; padding-top: 3px; }
+  .tool-name { font-family: var(--mono); font-weight: 700; font-size: 12.5px; color: var(--text); }
+  .tool-latency { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .tool-summary { color: var(--text-dim); margin-top: 5px; font-size: 12.5px; line-height: 1.55; }
+  .tool-evidence { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .evidence-chip {
+    font-size: 11.5px; color: var(--text-dim); background: var(--panel-2); border: 1px solid var(--border-soft);
+    padding: 6px 10px; border-radius: 8px; line-height: 1.5;
+  }
+  .evidence-chip .src { color: var(--accent); font-weight: 600; }
+  .evidence-chip .score { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+
+  #examples-inline { padding: 0 28px 14px; display: none; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+  .example-chip {
+    font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--border-soft);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .example-chip:hover { border-color: var(--accent); color: var(--text); }
+
+  #composer {
+    padding: 16px 28px 20px; border-top: 1px solid var(--border-soft); flex-shrink: 0;
+    display: flex; gap: 10px; align-items: flex-end; background: var(--bg);
+  }
+  #query-input {
+    flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    color: var(--text); padding: 11px 15px; font-size: 14px; resize: none; font-family: inherit;
+    max-height: 120px; transition: border-color .15s;
+  }
+  #query-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  #send-btn {
+    background: var(--accent-strong); color: #fff; border: none; border-radius: 12px; padding: 11px 22px;
+    font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: background .15s;
+  }
+  #send-btn:hover:not(:disabled) { background: #3d78e0; }
+  #send-btn:disabled { background: var(--panel-2); color: var(--muted); cursor: not-allowed; }
+
+  .loading-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+  .loading-row { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 13px; }
+  .spinner {
+    width: 15px; height: 15px; border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .pulse-track { display: flex; gap: 5px; }
+  .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); animation: pulse 1.2s ease-in-out infinite; }
+  .pulse-dot:nth-child(2) { animation-delay: .15s; } .pulse-dot:nth-child(3) { animation-delay: .3s; }
+  .pulse-dot:nth-child(4) { animation-delay: .45s; } .pulse-dot:nth-child(5) { animation-delay: .6s; }
+  @keyframes pulse { 0%, 100% { background: var(--border); } 50% { background: var(--accent); } }
+
+  #empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; text-align: center; padding: 40px; gap: 10px; }
+  #empty-state svg { opacity: .3; }
+
+  #messages::-webkit-scrollbar, #sidebar::-webkit-scrollbar { width: 8px; }
+  #messages::-webkit-scrollbar-thumb, #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  #messages::-webkit-scrollbar-track, #sidebar::-webkit-scrollbar-track { background: transparent; }
+
+  @media (max-width: 760px) {
+    #sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-title"><span class="brand-dot"></span>企业智能运维诊断 Agent</div>
+      <div class="brand-sub">Enterprise AIOps Diagnosis Agent</div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-label">Architecture Pipeline</div>
+      <div class="pipeline" id="pipeline">
+        <div class="pl-node" data-stage="intent"><span class="pl-icon"></span>意图理解</div>
+        <div class="pl-line"></div>
+        <div class="pl-node" data-stage="retrieval"><span class="pl-icon"></span>BM25 + Dense 混合检索</div>
+        <div class="pl-line"></div>
+        <div class="pl-node" data-stage="fusion"><span class="pl-icon"></span>RRF 融合 + Reranker</div>
+        <div class="pl-line"></div>
+        <div class="pl-node" data-stage="tools"><span class="pl-icon"></span>工具调用 (Metrics/Log/Ticket)</div>
+        <div class="pl-line"></div>
+        <div class="pl-node" data-stage="validate"><span class="pl-icon"></span>证据相关性校验</div>
+        <div class="pl-line"></div>
+        <div class="pl-node" data-stage="answer"><span class="pl-icon"></span>生成诊断结论</div>
+      </div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-label">System</div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-box"><div class="stat-num" id="stat-docs">–</div><div class="stat-label">知识文档</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-chunks">–</div><div class="stat-label">Chunks</div></div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="provider-row"><span class="k">Embedder</span><span class="v" id="prov-embedder">–</span></div>
+        <div class="provider-row"><span class="k">Reranker</span><span class="v" id="prov-reranker">–</span></div>
+        <div class="provider-row"><span class="k">LLM</span><span class="v" id="prov-llm">–</span></div>
+      </div>
+    </div>
+
+    <div class="side-section" style="border-bottom:none; flex:1">
+      <div class="side-label">试试这些问题</div>
+      <div class="examples-list">
+        <div class="example-item" data-q="order-service最近大量出现502，帮我分析可能原因并给出排查步骤">🔴 order-service 大量 502，分析原因并给排查步骤</div>
+        <div class="example-item" data-q="什么是缓存穿透">📘 什么是缓存穿透（纯知识问答）</div>
+        <div class="example-item" data-q="inventory-service内存持续升高，响应变慢，怎么排查">🟡 inventory-service 内存升高，响应变慢</div>
+        <div class="example-item" data-q="订单服务502的根因链路是怎样的，涉及到哪些服务">🔗 502 的完整根因链路涉及哪些服务</div>
+        <div class="example-item" data-q="公司的年假申请流程是什么">⚪ 知识库外的问题（测试拒答）</div>
+      </div>
+    </div>
+  </aside>
+
+  <div id="main">
+    <div id="topbar">
+      <div class="title">对话</div>
+      <div id="status-pill"><span class="dot"></span>连接中...</div>
+    </div>
+
+    <div id="messages">
+      <div id="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        输入一个运维/故障相关的问题，Agent 会自主决定检索知识库、查服务指标、查日志还是查历史工单。<br/>左侧有示例问题可以直接点。
+      </div>
+    </div>
+
+    <div id="composer">
+      <textarea id="query-input" rows="1" placeholder="描述一个故障或问题，比如：订单服务 502 很多，帮我分析..."></textarea>
+      <button id="send-btn">发送</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- inline icon set ----
+const ICONS = {
+  intent: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+  merge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v6a4 4 0 004 4h4"/><circle cx="6" cy="3" r="0"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 8v7"/></svg>',
+  tool: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 005.4-5.4l-2.8 2.8-2-2z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>',
+  answer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/></svg>',
+  knowledge_search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M14 3v5h5"/></svg>',
+  service_metrics: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l3.5-4 3 2.5L18 8"/></svg>',
+  log_query: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  ticket_search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4z"/></svg>',
+};
+document.querySelectorAll('.pl-icon').forEach((el, i) => {
+  const keys = ['intent','search','merge','tool','check','answer'];
+  el.innerHTML = ICONS[keys[i]];
+});
+
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('query-input');
+const sendBtn = document.getElementById('send-btn');
+const statusPill = document.getElementById('status-pill');
+const emptyState = document.getElementById('empty-state');
+const pipelineEl = document.getElementById('pipeline');
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 极简markdown渲染: 标题/加粗/列表/分隔线/代码,足够展示LLM输出,不引入外部库
+function renderMarkdown(text) {
+  let lines = escapeHtml(text).split('\n');
+  let html = ''; let inList = false;
+  for (let line of lines) {
+    if (/^\s*---\s*$/.test(line)) { html += '<hr/>'; continue; }
+    let h = line.match(/^(#{1,3})\s+(.*)/);
+    if (h) { html += `<h3>${h[2]}</h3>`; continue; }
+    let li = line.match(/^\s*[-\d]+[\.\)]?\s+(.*)/);
+    if (li && /^\s*[-*]\s/.test(line)) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${inlineMd(li[1])}</li>`; continue;
+    } else if (inList) { html += '</ul>'; inList = false; }
+    if (line.trim() === '') { html += '<br/>'; continue; }
+    html += `<p>${inlineMd(line)}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+function inlineMd(s) {
+  return s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>');
+}
+
+async function checkHealth() {
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    statusPill.innerHTML = `<span class="dot"></span>就绪`;
+    statusPill.className = 'ready';
+    document.getElementById('stat-docs').textContent = data.n_docs;
+    document.getElementById('stat-chunks').textContent = data.n_chunks;
+    document.getElementById('prov-embedder').textContent = data.provider.embedder;
+    document.getElementById('prov-reranker').textContent = data.provider.reranker;
+    document.getElementById('prov-llm').textContent = data.provider.llm;
+  } catch (e) {
+    statusPill.innerHTML = `<span class="dot"></span>连接失败`;
+    statusPill.className = 'error';
+  }
+}
+checkHealth();
+
+function addUserMessage(query) {
+  if (emptyState.parentNode) emptyState.remove();
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<div class="bubble-user">${escapeHtml(query)}</div>`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function setPipelineStage(stage) {
+  const nodes = pipelineEl.querySelectorAll('.pl-node');
+  const order = ['intent','retrieval','fusion','tools','validate','answer'];
+  const idx = order.indexOf(stage);
+  nodes.forEach((n, i) => {
+    n.classList.remove('active', 'done');
+    if (i < idx) n.classList.add('done');
+    else if (i === idx) n.classList.add('active');
+  });
+}
+function resetPipeline() {
+  pipelineEl.querySelectorAll('.pl-node').forEach(n => n.classList.remove('active', 'done'));
+}
+
+function addLoadingMessage() {
+  const div = document.createElement('div');
+  div.className = 'msg agent';
+  div.id = 'loading-msg';
+  div.innerHTML = `
+    <div class="agent-card">
+      <div class="loading-card">
+        <div class="loading-row"><div class="spinner"></div>Agent 正在分析（真实LLM推理，通常需要 15~40 秒）</div>
+        <div class="pulse-track"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
+      </div>
+    </div>`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  // 模拟阶段推进(基于真实平均耗时估算,不是伪造数据,只是给等待过程一个可读的进度感)
+  setPipelineStage('intent');
+  const seq = [['retrieval', 1200], ['fusion', 2600], ['tools', 4000], ['validate', 100000]];
+  window._plTimers = seq.map(([stage, delay]) => setTimeout(() => setPipelineStage(stage), delay));
+}
+function clearPipelineTimers() {
+  (window._plTimers || []).forEach(clearTimeout);
+}
+
+function statusLabel(status) {
+  if (status === 'answered') return { text: '已回答', cls: 'answered', color: 'var(--green)' };
+  if (status === 'abstained') return { text: '证据不足 · 已拒答', cls: 'abstained', color: 'var(--amber)' };
+  return { text: status, cls: 'error', color: 'var(--red)' };
+}
+
+function toolIcon(name) {
+  return ICONS[name] || ICONS.tool;
+}
+
+function renderToolTimeline(toolCalls) {
+  return toolCalls.map((tc, i) => {
+    const isLast = i === toolCalls.length - 1;
+    let evidenceHtml = '';
+    if (tc.evidence && tc.evidence.length) {
+      evidenceHtml = '<div class="tool-evidence">' + tc.evidence.map(e =>
+        `<div class="evidence-chip"><span class="src">[${escapeHtml(e.source)}]</span> ${escapeHtml(e.content.slice(0, 90))}${e.content.length > 90 ? '…' : ''} <span class="score">score ${e.score}</span></div>`
+      ).join('') + '</div>';
+    }
+    return `
+      <div class="tool-item">
+        <div class="rail">
+          <div class="tool-icon ${tc.success ? 'ok' : 'fail'}">${toolIcon(tc.tool)}</div>
+          ${isLast ? '' : '<div class="rail-line"></div>'}
+        </div>
+        <div class="tool-body">
+          <div class="tool-head-row">
+            <span class="tool-name">${escapeHtml(tc.tool)}</span>
+            <span class="tool-latency">${tc.latency_ms}ms</span>
+          </div>
+          <div class="tool-summary">${escapeHtml(tc.success ? tc.summary : ('调用失败: ' + (tc.error || '未知错误')))}</div>
+          ${evidenceHtml}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function confColor(pct) {
+  if (pct >= 65) return 'var(--green)';
+  if (pct >= 35) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function addAgentMessage(data) {
+  const loading = document.getElementById('loading-msg');
+  if (loading) loading.remove();
+  clearPipelineTimers();
+  setPipelineStage('done-all');
+  pipelineEl.querySelectorAll('.pl-node').forEach(n => { n.classList.remove('active'); n.classList.add('done'); });
+
+  const s = statusLabel(data.status);
+  const confPct = Math.round(data.confidence * 100);
+  const toolsHtml = renderToolTimeline(data.tool_calls);
+
+  const div = document.createElement('div');
+  div.className = 'msg agent';
+  div.innerHTML = `
+    <div class="agent-card">
+      <div class="agent-card-head">
+        <span class="badge ${s.cls}">${s.text}</span>
+        <div class="conf-bar-wrap">
+          <span class="meta">置信度</span>
+          <div class="conf-bar"><div class="conf-bar-fill" style="width:${confPct}%;background:${confColor(confPct)}"></div></div>
+          <span class="meta">${confPct}%</span>
+        </div>
+        <span class="meta">${data.iterations}轮 · ${(data.total_latency_ms/1000).toFixed(1)}s</span>
+      </div>
+      <div class="agent-answer">${renderMarkdown(data.answer)}</div>
+      <details class="tools">
+        <summary>Agent 执行轨迹 · ${data.tool_calls.length}次工具调用 · stop_reason=${data.stop_reason}</summary>
+        <div class="tool-timeline">${toolsHtml || '<div class="tool-summary" style="padding:8px 0">未调用任何工具</div>'}</div>
+      </details>
+    </div>`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  setTimeout(resetPipeline, 2000);
+}
+
+function addErrorMessage(msg) {
+  const loading = document.getElementById('loading-msg');
+  if (loading) loading.remove();
+  clearPipelineTimers();
+  resetPipeline();
+  const div = document.createElement('div');
+  div.className = 'msg agent';
+  div.innerHTML = `<div class="agent-card"><div class="agent-answer" style="color:var(--red)">请求失败: ${escapeHtml(msg)}</div></div>`;
+  messagesEl.appendChild(div);
+}
+
+async function sendQuery(query) {
+  if (!query.trim()) return;
+  addUserMessage(query);
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  sendBtn.disabled = true;
+  inputEl.disabled = true;
+  addLoadingMessage();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    addAgentMessage(data);
+  } catch (e) {
+    addErrorMessage(e.message);
+  } finally {
+    sendBtn.disabled = false;
+    inputEl.disabled = false;
+    inputEl.focus();
+  }
+}
+
+sendBtn.addEventListener('click', () => sendQuery(inputEl.value));
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuery(inputEl.value); }
+});
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+document.querySelectorAll('.example-item, .example-chip').forEach(chip => {
+  chip.addEventListener('click', () => sendQuery(chip.dataset.q));
+});
+</script>
+</body>
+</html>
