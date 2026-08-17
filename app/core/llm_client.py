@@ -116,20 +116,13 @@ class MockLLMClient(LLMClient):
         return "\n".join(lines)
 
 
-class AnthropicLLMClient(LLMClient):
-    def __init__(self):
-        from anthropic import Anthropic  # lazy import
-
-        if not settings.anthropic_api_key:
-            raise RuntimeError("LLM_PROVIDER=anthropic 但未配置 ANTHROPIC_API_KEY")
-        self.client = Anthropic(api_key=settings.anthropic_api_key)
-        self.model = settings.llm_model
+class PromptedLLMClient(LLMClient):
+    """真实LLM Provider的共享逻辑：Provider之间只有'怎么发HTTP请求'不同
+    （_call方法），classify_intent/plan_next_action/generate_answer 的
+    prompt设计和JSON解析逻辑是一样的，抽到基类避免重复。"""
 
     def _call(self, system: str, user: str) -> str:
-        resp = self.client.messages.create(
-            model=self.model, max_tokens=1024, system=system, messages=[{"role": "user", "content": user}]
-        )
-        return resp.content[0].text
+        raise NotImplementedError
 
     def classify_intent(self, query: str) -> str:
         out = self._call(
@@ -148,7 +141,15 @@ class AnthropicLLMClient(LLMClient):
             '严格输出JSON，不要多余文本: {"reasoning": "...", "tool_name": "xxx或null",'
             ' "tool_input": {}, "sufficient": true/false}'
         )
-        out = self._call("你是运维诊断Agent的Planner，只输出JSON。", prompt)
+        planner_system = (
+            "你是运维诊断Agent的Planner，只输出JSON。规则：(1) 只要还没有调用过knowledge_search，"
+            "就不能判断sufficient=true——哪怕你自己知道这个概念/术语的通用定义，企业内部的具体实现、"
+            "SOP、历史故障案例也可能和通用定义不同，必须先查证企业知识库再回答，这是避免幻觉的强制要求；"
+            "(2) 诊断类问题在拿到knowledge_search证据之后，如果还有明确的异常信号(错误日志/异常指标)"
+            "没有查证，应继续调用log_query/service_metrics；一旦已经有能支撑结论的证据链，就应该"
+            "sufficient=true，不要为了'更完整'无限调用工具；(3) 同一个工具不要连续对同一个service重复调用。"
+        )
+        out = self._call(planner_system, prompt)
         try:
             data = json.loads(out.strip().strip("`"))
             return PlannerDecision(
@@ -175,7 +176,54 @@ class AnthropicLLMClient(LLMClient):
         return self._call(system, f"用户问题: {query}\n\n可用证据:\n{obs_desc or '(无证据)'}")
 
 
+class AnthropicLLMClient(PromptedLLMClient):
+    def __init__(self):
+        from anthropic import Anthropic  # lazy import
+
+        if not settings.anthropic_api_key:
+            raise RuntimeError("LLM_PROVIDER=anthropic 但未配置 ANTHROPIC_API_KEY")
+        self.client = Anthropic(api_key=settings.anthropic_api_key)
+        self.model = settings.llm_model
+
+    def _call(self, system: str, user: str) -> str:
+        resp = self.client.messages.create(
+            model=self.model, max_tokens=1024, system=system, messages=[{"role": "user", "content": user}]
+        )
+        return resp.content[0].text
+
+
+class DeepSeekLLMClient(PromptedLLMClient):
+    """DeepSeek 走 OpenAI 兼容的 REST 接口，用项目已有的 httpx 直接调，
+    不额外引入 openai SDK 依赖。"""
+
+    def __init__(self):
+        import httpx
+
+        if not settings.deepseek_api_key:
+            raise RuntimeError("LLM_PROVIDER=deepseek 但未配置 DEEPSEEK_API_KEY")
+        self._httpx = httpx
+        self.base_url = settings.deepseek_base_url
+        self.api_key = settings.deepseek_api_key
+        self.model = settings.deepseek_model
+
+    def _call(self, system: str, user: str) -> str:
+        resp = self._httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            json={
+                "model": self.model,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                "stream": False,
+            },
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+
 def get_llm_client() -> LLMClient:
     if settings.llm_provider == "anthropic":
         return AnthropicLLMClient()
+    if settings.llm_provider == "deepseek":
+        return DeepSeekLLMClient()
     return MockLLMClient()

@@ -158,6 +158,20 @@ Agent不停止
 - **When to change**: 换成真实Embedding模型和真实Cross-Encoder Reranker后，分数分布会完全不同，
   阈值必须重新校准，不能沿用mock_hash/heuristic下标定的0.5
 
+### ADR-006: Planner必须强制先查knowledge_search，不能靠Answer层兜底防幻觉
+- **Decision**: 真实LLM Provider的Planner system prompt里加入强制规则——只要没调用过
+  knowledge_search就不能判断sufficient=true，即使LLM自己知道问题的通用答案
+- **Why**: 接入DeepSeek后的真实运行发现，纯知识类问题（"什么是缓存穿透"）Planner会
+  直接用自己的训练知识判断"信息已经足够"，完全跳过knowledge_search。虽然Answer层的
+  grounding约束正确地阻止了它编造答案（转为abstained），但这不是我们想要的结果——
+  代价是放弃了查证企业知识库的机会。防幻觉应该在"要不要查证据"这一步就做对，
+  不能只依赖"编造之前踩刹车"这一层兜底
+- **Alternatives**: 保留Answer层兜底作为唯一防线（已验证过，效果是"安全但没利用上知识库"）
+- **Trade-offs**: 强制先查会增加至少一次工具调用的延迟和成本，对确定不需要企业知识的
+  问题（如"1+1等于几"）也会先去查一次知识库，是有意的过度保守
+- **When to change**: 如果Intent分类能够可靠区分"纯通用常识问题"和"可能涉及企业内部
+  定义的问题"，可以只对后者强制此规则
+
 ### ADR-004: 不使用Redis
 - **Decision**: MVP不引入缓存层
 - **Why**: 没有实测出的缓存收益场景，提前引入是过度工程化

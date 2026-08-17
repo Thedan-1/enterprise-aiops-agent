@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     llm_provider: str = "mock"
     anthropic_api_key: str = ""
     llm_model: str = "claude-sonnet-5"
+    deepseek_api_key: str = ""
+    deepseek_model: str = "deepseek-chat"
+    deepseek_base_url: str = "https://api.deepseek.com"
 
     agent_max_iterations: int = 5
     agent_timeout_s: float = 30.0

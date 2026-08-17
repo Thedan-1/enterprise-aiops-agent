@@ -91,6 +91,47 @@ Agent 仍然返回了"answered"状态、生成了看似正常的回答，而不�
 不是提前预设好的演示——这个过程本身就是很好的面试素材（见50题清单里
 "知识库没有答案时Agent怎么办"这一题，现在有真实的bug发现+修复故事可以讲）。
 
+## 接入真实 LLM（DeepSeek）后的验证（2026-08-17 补充）
+
+用户提供了 DeepSeek API Key，接入后（`LLM_PROVIDER=deepseek`，走 OpenAI 兼容REST接口，
+`app/core/llm_client.py` 新增 `DeepSeekLLMClient`），重跑了 Agent Demo 的3个query，
+Embedder/Reranker仍是占位实现（这两个和LLM是独立的Provider）。
+
+**第一轮真实LLM运行暴露的问题**：真实LLM的Planner不像MockLLM那样被硬编码"第一步必须
+查知识库"，而是会自己判断。结果是：① 诊断类query（订单502）跑到了 `timeout`（30秒内
+没收敛，一直在追加工具调用）；② 纯知识类query（"什么是缓存穿透"）Planner第一步就判断
+`sufficient=true`、**完全没有调用knowledge_search**——这是一个真实的、有代表性的问题：
+LLM自己"知道"缓存穿透的通用定义，倾向于直接从自己的训练知识回答，而不是先查企业知识库。
+好消息是下游的 Answer Validator 起了作用：因为没有Evidence，`generate_answer`的system
+prompt强制"只能基于提供的证据回答"，DeepSeek老实地回答了"证据不足"而不是凭自己知识编，
+最终状态正确地判成了 `abstained`——**说明"防幻觉"这道保险生效了，但保险生效的代价是
+放弃了利用真实企业知识库的机会，这不是我们想要的行为，问题出在Planner层，不该靠
+Answer层兜底**。
+
+**修复**：给 Planner 的 system prompt 加了强制规则："只要没调用过knowledge_search就不能
+判断sufficient=true，哪怕LLM自己知道通用定义，因为企业内部实现可能不同"；同时把
+`AGENT_TIMEOUT_S` 从30调到45（真实API往返比MockLLM慢，30秒对多轮工具调用偏紧）。
+
+**修复后重跑，三个query的结果**：
+1. **"order-service 502"**（诊断类）：3轮收敛（`knowledge_search`→`service_metrics`→
+   `log_query`），`status=answered, confidence=1.0`。回答质量和MockLLM完全不是一个量级——
+   准确复现了历史case里"第三方网关抖动→payment-service重试放大延迟→order-service连接池
+   耗尽→502"这条级联链路，明确区分"已确认信息"和"待排查项"，给出可执行的排查步骤，
+   结论用"最可能的根因是..."这种恰当的不确定性措辞，而不是拍胸脯下结论。这是真实LLM
+   推理和Mock规则引擎的能力差距的直接证据。
+2. **"什么是缓存穿透"**（知识类）：正确调用了`knowledge_search`，基于Redis故障文档给出
+   准确定义，还主动区分了穿透/击穿/雪崩三个概念避免混淆，`status=answered, confidence=0.65`。
+3. **"公司年假申请流程"**（知识库外）：**这里又暴露了一个新问题，如实记录**——
+   `knowledge_search`被连续调用了2次（打满tool_budget强制停止），返回的1条"证据"其实是
+   payment-service接口文档（reranker分数刚好压线超过0.5阈值，但内容和年假完全无关），
+   所以最终 `status` 判成了 `answered` 而不是 `abstained`——尽管LLM在**回答正文里**正确
+   识别出"该证据与年假申请无关，无法回答"。**这说明目前的 Abstention 判断（Validator只看
+   "有没有及格分数的evidence"）还是太粗糙**：分数刚过阈值但主题完全不相关的证据，
+   会让status字段和回答内容对不上。更彻底的修法应该是让Validator也做一次"证据和问题
+   主题相关性"的语义校验（比如让LLM自己判断"这些证据能不能支持回答这个问题"作为
+   Answer Validator的一部分，而不是单纯依赖Reranker分数阈值），这是下一步要做的，
+   本次先如实记录这个已知局限，没有为了让demo好看而回避。
+
 ## 尚未完成的实验（诚实标注，不伪造）
 
 - Reranker有无对比（当前Reranker默认开启，还没跑"关闭Reranker"的对照组）
