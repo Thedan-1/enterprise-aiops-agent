@@ -19,13 +19,13 @@
 
 | 组件 | 默认实现 | 说明 |
 |---|---|---|
-| Embedder | `mock_hash`：字符n-gram hashing | 无需下载模型/联网，能跑通Pipeline，语义能力弱于真实Embedding模型 |
-| Reranker | `heuristic`：词面重合度 | 无需下载模型，能验证精排流程，效果弱于Cross-Encoder |
-| LLM | `mock`：规则引擎 | 能驱动Agent Loop的状态机/工具调用/停止条件，不具备真实推理能力 |
+| Embedder | `mock_hash`：字符n-gram hashing（**当前仍是占位**） | 无需下载模型/联网，能跑通Pipeline，语义能力弱于真实Embedding模型 |
+| Reranker | `heuristic`：词面重合度（**当前仍是占位**） | 无需下载模型，能验证精排流程，效果弱于Cross-Encoder |
+| LLM | `deepseek`：**已切换为真实DeepSeek API**（`deepseek-chat`） | 真实推理，Agent Demo的回答质量和Mock规则引擎不是一个量级，见 `docs/experiment_results.md` |
 
 切换为真实Provider：编辑 `.env`，设置 `EMBEDDER_PROVIDER=openai` + `OPENAI_API_KEY`，
 `RERANKER_PROVIDER=cross_encoder`（需要 `pip install sentence-transformers`），
-`LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`。接口不变，代码不用改。
+`LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`（或已经配好的 `LLM_PROVIDER=deepseek`）。接口不变，代码不用改。
 
 ## 快速开始
 
@@ -58,7 +58,9 @@ uvicorn app.main:app --reload          # 启动API, POST /api/chat {"query": "..
 - [x] Chunk Size (256/512/1024) 对比实验 —— 已跑，真实数据见 `docs/experiment_results.md`
 - [x] Dense-only / BM25-only / Hybrid 对比实验 —— 已跑，真实数据见 `docs/experiment_results.md`（结果和"Hybrid应该更好"的直觉不一致，已如实记录分析）
 - [x] Abstention（拒答）机制验证 —— 联调中发现真实缺陷并修复，见 `docs/experiment_results.md`
-- [ ] 换真实 Embedding 模型（`EMBEDDER_PROVIDER=openai`）重跑全部实验 —— 当前所有数字建立在占位Embedder之上，是下一步最重要的验证
+- [x] 接入真实LLM（DeepSeek）—— 已完成，且真实运行又发现并修复了一个Planner层的防幻觉gap，见 ADR-006
+- [ ] 修复"证据主题不相关但压线通过分数阈值"导致status误判为answered的问题（DeepSeek联调发现，见experiment_results.md最后一节）——需要在Validator里加语义相关性校验，不能只看分数阈值
+- [ ] 换真实 Embedding 模型（`EMBEDDER_PROVIDER=openai`）重跑全部实验 —— 当前Retrieval数字仍建立在占位Embedder之上，是下一步最重要的验证
 - [ ] Reranker有无对比、Max Iterations对Task Success Rate影响 —— 还没跑
 - [ ] FastAPI 集成测试（当前只有不依赖DB的单元测试）
 - [ ] Ticket工单Tool（第4个Tool，MVP稳定后再加）
