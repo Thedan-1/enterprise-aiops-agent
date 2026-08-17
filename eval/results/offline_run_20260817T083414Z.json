@@ -1,0 +1,228 @@
+{
+  "provider": {
+    "embedder": "mock_hash",
+    "reranker": "heuristic",
+    "llm": "deepseek"
+  },
+  "n_docs": 9,
+  "n_chunks_baseline": 43,
+  "baseline_retrieval": {
+    "n": 30,
+    "overall_recall": 0.8933,
+    "overall_precision": 0.3539,
+    "overall_mrr": 0.7533,
+    "by_category": {
+      "keyword": {
+        "n": 10,
+        "recall": 1.0,
+        "precision": 0.4083,
+        "mrr": 0.7667
+      },
+      "multi_evidence": {
+        "n": 5,
+        "recall": 0.6667,
+        "precision": 0.4,
+        "mrr": 0.6667
+      },
+      "not_in_kb": {
+        "n": 5,
+        "recall": null,
+        "precision": 0.0,
+        "mrr": null,
+        "empty_result_rate": 0.0
+      },
+      "semantic": {
+        "n": 10,
+        "recall": 0.9,
+        "precision": 0.4533,
+        "mrr": 0.7833
+      }
+    }
+  },
+  "chunk_size_experiment": {
+    "256": {
+      "n_chunks": 47,
+      "recall": 0.8533,
+      "precision": 0.3789,
+      "mrr": 0.72
+    },
+    "512": {
+      "n_chunks": 43,
+      "recall": 0.8933,
+      "precision": 0.3539,
+      "mrr": 0.7533
+    },
+    "1024": {
+      "n_chunks": 42,
+      "recall": 0.8933,
+      "precision": 0.3594,
+      "mrr": 0.7533
+    }
+  },
+  "retrieval_strategy_experiment": {
+    "dense_only": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1389,
+      "overall_mrr": 0.769,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1347,
+          "mrr": 0.8167
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2444,
+          "mrr": 0.6333
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1597,
+          "mrr": 0.7893
+        }
+      }
+    },
+    "bm25_only": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1681,
+      "overall_mrr": 0.8867,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1861,
+          "mrr": 0.8833
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2639,
+          "mrr": 0.8667
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1863,
+          "mrr": 0.9
+        }
+      }
+    },
+    "hybrid": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1384,
+      "overall_mrr": 0.7633,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1361,
+          "mrr": 0.8167
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2444,
+          "mrr": 0.7167
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1569,
+          "mrr": 0.7333
+        }
+      }
+    }
+  },
+  "agent_demo": [
+    {
+      "query": "order-service最近大量出现502，帮我分析可能原因并给出排查步骤",
+      "intent": "diagnosis",
+      "status": "answered",
+      "confidence": 0.5,
+      "iterations": 2,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：Nginx 502/504 网关错误排查指南、历史故障复盘：order-service 大量 502"
+        },
+        {
+          "tool": "service_metrics",
+          "success": false,
+          "summary": ""
+        }
+      ],
+      "answer": "## 诊断结论\n\n根据现有证据，**order-service 大量 502 最可能的原因是一条级联故障链路**（第三方支付网关抖动 → payment-service 同步重试放大延迟 → order-service 被拖慢 → order-service 数据库连接池耗尽 → Nginx 层 502），而 **order-service 自身 CPU/Memory 并非瓶颈**（证据显示其 CPU/Memory 未达到瓶颈）。\n\n---\n\n## 排查步骤\n\n1. **查看 Nginx error.log**，确认报错类型是 `upstream prematurely closed connection` 还是 `upstream timed out`，两者指向的不同原因需区别分析。\n2. **查看 order-service 自身日志** —— 这一点很关键：Nginx 日志只能告诉你\"连接失败\"，不能告诉你\"为什么失败\"，必须结合后端服务日志确认是\"处理超时\"还是\"主动断开\"。\n3. **查看 order-service 实时指标**：CPU、Memory、**数据库连接池使用率**、GC 频率。\n4. **若发现连接池接近或打满**，顺着调用链路检查 **payment-service 是否变慢**（如响应时间上升、重试逻辑是否放大延迟）。\n5. **进一步检查 payment-service 的下游（第三方支付网关）** 是否存在抖动——这是历史复盘中定位到的最终根因。\n6. **检查是否有最近发布/配置变更**，排除变更引入或放大了故障。\n7. **检查 order-service 对 payment-service 的调用，是否配置了超时与熔断机制** —— 历史复盘中明确提到\"order-service 缺少对 payment-service 调用的超时熔断，是导致故障被放大的关键因素\"。\n\n> ⚠️ 若以上步骤执行后，后端服务各项指标均正常、日志无异常、链路也无明显延迟，则 **当前证据不足以确定根因**，需要补充更多信息（如网络层丢包情况、K8s 层面 pod 重启/驱逐记录、上游负载均衡配置等）后才能进一步定位。\n\n---\n\n## 引用来源\n\n- **历史故障复盘：order-service 大量 502**（故障现象、根因结论、排查过程、级联链路）  \n  Evidence: order-service 约10分钟内大量 502，Error Rate 接近20%，P95延迟从200ms升至2秒以上，CPU/Memory 未达瓶颈；根因是\"第三方支付网关抖动 → payment-service 同步重试放大延迟 → order-service 同步调用被拖慢 → 数据库连接池耗尽 → Nginx 502\"；关键因素是缺少对 payment-service 调用的超时熔断。\n\n- **Nginx 502/504 网关错误排查指南**（排查步骤）  \n  Evidence: 查看 Nginx error.log 区分 `upstream prematurely closed connection` / `upstream timed out`；结合后端服务日志；检查上游服务 CPU/Memory/连接池/GC；连接池耗尽往往是下游变慢的连锁反应；检查发布/配置变更。"
+    },
+    {
+      "query": "什么是缓存穿透",
+      "intent": "knowledge_qa",
+      "status": "answered",
+      "confidence": 0.65,
+      "iterations": 2,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：Redis 常见故障模式、历史故障案例：inventory-service 内存压力导致响应变慢"
+        },
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：Redis 常见故障模式、历史故障案例：inventory-service 内存压力导致响应变慢"
+        }
+      ],
+      "answer": "### 诊断结论\n\n**缓存穿透** 是指请求查询一个在数据库和缓存中都不存在的 key，导致每次请求都绕过缓存直接打到数据库的现象。若被恶意或大量请求此类不存在的 key，数据库压力会骤增。\n\n---\n\n### 排查步骤\n\n1. **确认现象**  \n   观察数据库查询量是否远高于缓存命中率，且大量查询针对的 key 在数据库中本身不存在。\n\n2. **识别特征**  \n   检查请求的 key 是否具有“不存在”特征（如恶意构造的 ID、无效参数），并确认这些 key 从未被成功缓存。\n\n3. **评估风险**  \n   若此类请求量级大或为恶意攻击，数据库可能面临过载风险，需结合监控指标（如数据库 QPS、连接数）确认影响。\n\n4. **针对性处置**  \n   - 对不存在的结果也缓存空值（设置较短 TTL），拦截重复无效请求。  \n   - 使用布隆过滤器在缓存前提前拦截明显不存在的 key。\n\n---\n\n### 引用来源\n\n- [Redis 常见故障模式] 缓存穿透（Cache Penetration）：请求查询一个数据库和缓存里都不存在的 key，每次都会绕过缓存直接打到数据库。若被恶意/大量请求不存在的 key，数据库压力会骤增。应对措施：对不存在的结果也缓存空值（短 TTL）；使用布隆过滤器拦截。\n\n---\n\n### 补充说明\n\n- **与缓存击穿、缓存雪崩的区别**（均源自同一证据源，便于区分）：  \n  - **缓存击穿**：单个热点 key 过期瞬间，大量并发请求穿透到数据库。  \n  - **缓存雪崩**：大量 key 集中过期或 Redis 宕机，导致请求全部穿透到数据库。  \n- **未确认信息**：当前证据未提供缓存穿透的具体代码示例或性能指标，如需进一步分析需补充实际请求日志或监控数据。"
+    },
+    {
+      "query": "公司的年假申请流程是什么",
+      "intent": "knowledge_qa",
+      "status": "abstained",
+      "confidence": 0.1,
+      "iterations": 2,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到1条相关证据，来源：payment-service 服务文档"
+        },
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "知识库未检索到相关文档"
+        }
+      ],
+      "answer": "**诊断结论**：当前证据不足，无法提供公司的年假申请流程。\n\n**已确认信息**：\n- 知识库中未检索到任何与“年假申请流程”相关的文档或证据。\n- 检索到的唯一一条证据（payment-service 服务文档）涉及的是支付预授权接口，与年假申请流程完全无关。\n\n**未确认信息**：\n- 年假申请的具体流程（如申请入口、审批人、所需材料、审批时限等）均未在现有证据中体现。\n\n**排查步骤建议**：\n1. 请检查您公司的内部HR系统、员工手册或OA系统中的“考勤休假”模块，查找是否有独立的“年假申请”操作手册或流程图。\n2. 确认是否使用了特定的企业服务（如payroll-service、attendance-service）来管理年假，但当前知识库中并未收录相关文档。\n3. 如果以上渠道仍无结果，建议直接咨询人力资源部门或行政对接人，获取官方的年假申请指引。\n\n**引用来源**：\n- [knowledge_search] 知识库未检索到相关文档（无证据ID）\n- [knowledge_search] (payment-service 服务文档) [POST /api/payments/pre-authorize] —— 该证据与年假申请无关联。"
+    }
+  ]
+}

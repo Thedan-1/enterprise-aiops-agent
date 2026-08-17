@@ -29,20 +29,31 @@
 ## 3. MVP 边界
 
 **必须有**
-- Agent Runtime：Intent → Planner → Tool Loop（结构化停止条件）→ Answer
+- Agent Runtime：Intent → Planner → Tool Loop（结构化停止条件）→ Answer → Evidence Validation
 - Knowledge Retrieval Tool：内部完整 BM25 + Dense + Hybrid Fusion + Reranker pipeline
 - Log Query Tool（mock 数据，但接口设计为可替换为真实日志系统）
 - Service Metrics Tool（mock 数据，同上）
-- Evidence-based Answer + Abstention（无证据时拒答，不编造）
+- **Ticket 工单 Tool**（mock 数据，同上）——原计划"MVP稳定后再加"，前3个工具跑通+真实LLM联调
+  验证过状态机稳定之后，已经加入，见下方"MVP 完成后的追加项"
+- Evidence-based Answer + Abstention（无证据时拒答，不编造；Evidence Relevance 判断防止
+  "分数过线但主题不相关"的证据被误判为有效证据，见 ADR-007）
 - 30 条结构化评测集，跑出真实 Recall/Precision/MRR（不伪造数字）
 - Retrieval Debug 数据结构全链路落库（这是"可扒性"的核心）
 - 结构化日志，request_id 贯穿全链路
-- Docker Compose 一键起（Postgres + pgvector + 服务）
+- Docker Compose 一键起（Postgres + pgvector + 服务，代码就绪，本机因宿主机虚拟化设置未验证）
 
 **非 MVP（明确排除，作为"规模扩大后的演进方案"讨论）**
-- Ticket 工单 Tool（第 4 个工具，MVP 稳定后再加）
 - Query Rewrite 的独立 LLM 调用（先规则兜底，评测发现"模糊问题召回差"再加）
 - Redis / Milvus / Kafka / K8s / Neo4j / GraphRAG / Multi-Agent / 长期 Memory / LangGraph（见第 23-24 节）
+
+## 3.1 MVP 完成后的追加项（真实开发过程中做的，非原计划）
+
+- **DeepSeek 真实 LLM 接入**：替换 Mock 规则引擎，见 ADR-006
+- **Ticket 工单 Tool**：4个工具协同（knowledge_search/log_query/service_metrics/ticket_search）
+- **Evidence Relevance 判断**：ADR-007，修复真实联调发现的 Validator 判断粗糙问题
+- **FastAPI 集成测试**：不依赖真实 Postgres，用 dependency_overrides + FakeSession 验证
+  HTTP 契约和持久化代码路径
+- 完整实验记录见 `docs/experiment_results.md`——包括几个和直觉不一致、如实记录而非回避的结果
 
 ## 4. 非 MVP 功能清单
 
@@ -303,6 +314,29 @@ class ServiceMetricsTool(Tool):
         # MVP: mock数据，预置几个服务的"正常"和"异常"两套快照
         ...
 ```
+
+## 17.1 Ticket Search Tool 接口（MVP稳定后追加的第4个工具）
+
+```python
+class TicketSearchTool(Tool):
+    name = "ticket_search"
+    description = "查询历史故障工单及其解决方案，可按服务名和/或关键词检索"
+    input_schema = {"service": str, "query": str}  # 均可选
+
+    def call(self, service: str = "", query: str = "") -> ToolResult:
+        # MVP: mock数据(data/mock/tickets.py)，简单字符串匹配；
+        # 生产替换点：接入Jira/内部工单系统API，函数签名不变
+        ...
+```
+
+和 knowledge_search 的区别：knowledge_search 检索的是文档/SOP这类"通用知识"，
+ticket_search 检索的是"这个具体问题历史上出现过、怎么修的"这种结构化的
+问题-方案记录，信息密度更高但覆盖面更窄（只覆盖发生过的故障，不覆盖纯知识性问题）。
+两者在 Agent Loop 里是互补关系，不是互相替代——这也是为什么 Validator 把
+ticket_search 的非空结果计入 grounding 证据（和 log_query/service_metrics 同类），
+而不是像 knowledge_search 那样需要额外过 Evidence Relevance 判断：因为
+ticket_search 走的是精确字段匹配（service名/关键词），不是语义检索，
+出现"分数过线但主题不相关"这类问题的概率本身就低很多。
 
 ## 18. Agent State 设计
 

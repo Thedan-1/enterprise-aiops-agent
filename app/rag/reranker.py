@@ -62,6 +62,14 @@ class CrossEncoderReranker(Reranker):
         ]
 
 
+class NoOpReranker(Reranker):
+    """直接取Fusion阶段的Top-K，不做二次排序——作为"有没有Reranker"这组对比实验的
+    对照组，不用于生产（生产默认走HeuristicReranker/CrossEncoderReranker）。"""
+
+    def rerank(self, query: str, candidates: list[ScoredChunk], top_k: int = 5) -> list[ScoredChunk]:
+        return candidates[:top_k]
+
+
 def get_reranker() -> Reranker:
     if settings.reranker_provider == "cross_encoder":
         return CrossEncoderReranker()

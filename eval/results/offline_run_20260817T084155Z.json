@@ -1,0 +1,364 @@
+{
+  "provider": {
+    "embedder": "mock_hash",
+    "reranker": "heuristic",
+    "llm": "deepseek"
+  },
+  "n_docs": 9,
+  "n_chunks_baseline": 43,
+  "baseline_retrieval": {
+    "n": 30,
+    "overall_recall": 0.8933,
+    "overall_precision": 0.3539,
+    "overall_mrr": 0.7533,
+    "by_category": {
+      "keyword": {
+        "n": 10,
+        "recall": 1.0,
+        "precision": 0.4083,
+        "mrr": 0.7667
+      },
+      "multi_evidence": {
+        "n": 5,
+        "recall": 0.6667,
+        "precision": 0.4,
+        "mrr": 0.6667
+      },
+      "not_in_kb": {
+        "n": 5,
+        "recall": null,
+        "precision": 0.0,
+        "mrr": null,
+        "empty_result_rate": 0.0
+      },
+      "semantic": {
+        "n": 10,
+        "recall": 0.9,
+        "precision": 0.4533,
+        "mrr": 0.7833
+      }
+    }
+  },
+  "chunk_size_experiment": {
+    "256": {
+      "n_chunks": 47,
+      "recall": 0.8533,
+      "precision": 0.3789,
+      "mrr": 0.72
+    },
+    "512": {
+      "n_chunks": 43,
+      "recall": 0.8933,
+      "precision": 0.3539,
+      "mrr": 0.7533
+    },
+    "1024": {
+      "n_chunks": 42,
+      "recall": 0.8933,
+      "precision": 0.3594,
+      "mrr": 0.7533
+    }
+  },
+  "retrieval_strategy_experiment": {
+    "dense_only": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1389,
+      "overall_mrr": 0.769,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1347,
+          "mrr": 0.8167
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2444,
+          "mrr": 0.6333
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1597,
+          "mrr": 0.7893
+        }
+      }
+    },
+    "bm25_only": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1681,
+      "overall_mrr": 0.8867,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1861,
+          "mrr": 0.8833
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2639,
+          "mrr": 0.8667
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1863,
+          "mrr": 0.9
+        }
+      }
+    },
+    "hybrid": {
+      "n": 30,
+      "overall_recall": 1.0,
+      "overall_precision": 0.1384,
+      "overall_mrr": 0.7633,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1361,
+          "mrr": 0.8167
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 1.0,
+          "precision": 0.2444,
+          "mrr": 0.7167
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.1569,
+          "mrr": 0.7333
+        }
+      }
+    }
+  },
+  "reranker_on_off_experiment": {
+    "with_reranker": {
+      "n": 30,
+      "overall_recall": 0.8933,
+      "overall_precision": 0.3539,
+      "overall_mrr": 0.7533,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.4083,
+          "mrr": 0.7667
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 0.6667,
+          "precision": 0.4,
+          "mrr": 0.6667
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 0.9,
+          "precision": 0.4533,
+          "mrr": 0.7833
+        }
+      }
+    },
+    "without_reranker": {
+      "n": 30,
+      "overall_recall": 0.88,
+      "overall_precision": 0.3511,
+      "overall_mrr": 0.7533,
+      "by_category": {
+        "keyword": {
+          "n": 10,
+          "recall": 1.0,
+          "precision": 0.42,
+          "mrr": 0.8167
+        },
+        "multi_evidence": {
+          "n": 5,
+          "recall": 0.6,
+          "precision": 0.3667,
+          "mrr": 0.6667
+        },
+        "not_in_kb": {
+          "n": 5,
+          "recall": null,
+          "precision": 0.0,
+          "mrr": null,
+          "empty_result_rate": 0.0
+        },
+        "semantic": {
+          "n": 10,
+          "recall": 0.9,
+          "precision": 0.45,
+          "mrr": 0.7333
+        }
+      }
+    }
+  },
+  "agent_demo": [
+    {
+      "query": "order-service最近大量出现502，帮我分析可能原因并给出排查步骤",
+      "intent": "diagnosis",
+      "status": "answered",
+      "confidence": 1.0,
+      "iterations": 3,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：历史故障复盘：order-service 大量 502"
+        },
+        {
+          "tool": "log_query",
+          "success": true,
+          "summary": "order-service 在 最近15分钟 内发现 3 条ERROR日志: 2026-08-17T10:12:03Z ERROR order-service: upstream timeout connecting to payment-service (504) | 2026-08-17T10:12:05Z ERROR order-service: nginx upstream prematurely closed connection while reading response header from upstream, client: 10.0.2.11, upstream: order-service:8080 | 2026-08-17T10:12:11Z ERROR order-service: connection pool exhausted, waited 5000ms for available connection"
+        },
+        {
+          "tool": "service_metrics",
+          "success": true,
+          "summary": "order-service 状态异常: CPU 78%, Memory 65%, QPS 342, ErrorRate 18.0%, P95 2400ms"
+        }
+      ],
+      "answer": "## 诊断结论\n\n**当前证据不足以确认历史级联故障正在完全重演**，但多项证据与历史故障复盘高度吻合，判定如下：\n\n### 已确认信息\n| 项目 | 状态 |\n|------|------|\n| order-service 出现大量502 | ✅ 确认（日志出现Nginx upstream premature close） |\n| Error Rate上升至18%（P95 2400ms）| ✅ 确认（与历史复盘现象基本一致） |\n| 数据库连接池耗尽 | ✅ 确认（日志明确出现 connection pool exhausted, waited 5000ms） |\n| 对下游 payment-service 调用超时 | ✅ 确认（日志出现 upstream timeout connecting to payment-service 504） |\n| CPU/Memory 无瓶颈 | ✅ 确认（CPU 78%、Memory 65%，未达饱和） |\n| 根因是否为第三方支付网关抖动 | ❌ 未确认（当前无 payment-service 及下游支付网关的直接证据） |\n\n### 初步判断\n故障链路的形态（order-service自身资源未瓶颈 → 连接池耗尽 → 下游调用变慢 → 502）与历史复盘案例一致，但**尚未确认下游支付网关是否为本次直接根因源头**，也不能排除 payment-service 自身或 DNS/网络等其他因素导致其变慢。\n\n---\n\n## 建议排查步骤\n\n1. **查看 payment-service 最近15分钟监控**\n   - P95延迟、Error Rate、是否出现对第三方支付网关的超时或重试日志\n   - 确认 payment-service 自身CPU/内存状态（排除自身问题）\n\n2. **查看 payment-service 对第三方网关的调用情况**\n   - 若支付网关抖动，确认是否触发大量同步重试\n   - 检查 payment-service 是否有重试放大延迟的现象\n\n3. **确认 order-service 数据库连接池配置**\n   - 当前最大连接数是多少？是否接近打满值\n   - 是否存在其他请求同时占用连接（例如批量任务、慢查询等）\n\n4. **检查支付网关状态**\n   - 若有第三方监控平台，查询支付网关的可用性及响应延迟\n   - 确认是否为间歇性/持续抖动\n\n5. **检查 order-service 熔断/超时配置**\n   - 确认 order-service 对 payment-service 是否配置了超时熔断（若没有，这正是历史案例中的放大因素）\n\n6. **短期应急（可选）**\n   - 若确认连接池持续打满，可临时扩容连接池并重启order-service清空堆积连接（参考历史修复措施）\n\n---\n\n## 引用来源\n- [knowledge_search] 历史故障复盘：order-service 大量 502（级联故障链路、现象对比、排查过程、修复措施）\n- [log_query] order-service 近15分钟3条ERROR日志（504超时、upstream close、connection pool exhausted）\n- [service_metrics] order-service 实时指标（CPU、Memory、ErrorRate、P95）"
+    },
+    {
+      "query": "什么是缓存穿透",
+      "intent": "knowledge_qa",
+      "status": "answered",
+      "confidence": 0.65,
+      "iterations": 1,
+      "stop_reason": "planner_sufficient",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到5条相关证据，来源：Redis 常见故障模式、历史故障案例：inventory-service 内存压力导致响应变慢"
+        }
+      ],
+      "answer": "### 诊断结论\n\n**缓存穿透**指查询一个**数据库和缓存中都不存在**的 key，导致每次请求都绕过缓存直接打到数据库。若此类请求数量大（尤其是恶意或大量并发），会造成数据库压力骤增。这与**缓存击穿**（热点 key 过期瞬间大量并发穿透）和**缓存雪崩**（大量 key 同时过期或 Redis 宕机导致全面穿透）是三种不同的故障模式，需注意区分。\n\n### 排查步骤\n\n1. **确认现象**：观察数据库 QPS 是否异常升高，而缓存命中率持续偏低，且查询的 key 多为不存在的随机值。\n\n2. **验证根因**：检查是否存在大量对不存在 key 的请求（如循环随机 ID 查询），且缓存与数据库均无对应记录。\n\n3. **实施缓解措施**（依据证据提供的两种标准应对方案）：\n   - **对不存在的结果缓存空值**：为查询不到的数据也写入缓存，并设置较短 TTL，避免缓存击穿风险。\n   - **使用布隆过滤器**：在缓存前增加布隆过滤器，提前拦截明显不存在的 key，减少对数据库的无效穿透。\n\n### 引用来源\n\n- **证据1**（Redis 常见故障模式-缓存穿透）：明确定义了该问题及两种应对方案（空值缓存、布隆过滤器）。\n- **证据2**（Redis 常见故障模式-缓存击穿）：用于区分穿透与击穿——击穿是热点 key 过期瞬间的并发穿透，应对方式为“永不过期+异步刷新”或“互斥锁”。\n- **证据3**（Redis 常见故障模式-缓存雪崩）：用于区分穿透与雪崩——雪崩是大量 key 同时过期或 Redis 宕机导致的全面穿透，应对方式为 TTL 随机抖动+高可用架构。\n\n> **当前证据充分性说明**：回答基于以上 3 条证据，证据链完整，可支撑结论。其余 2 条证据（inventory-service 故障案例）与本问题无关，未采用。"
+    },
+    {
+      "query": "公司的年假申请流程是什么",
+      "intent": "knowledge_qa",
+      "status": "abstained",
+      "confidence": 0.1,
+      "iterations": 2,
+      "stop_reason": "tool_budget_exhausted",
+      "tool_calls": [
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到1条相关证据，来源：payment-service 服务文档"
+        },
+        {
+          "tool": "knowledge_search",
+          "success": true,
+          "summary": "检索到1条相关证据，来源：payment-service 服务文档"
+        }
+      ],
+      "answer": "### 诊断结论\n\n**当前证据不足**，无法回答“公司年假申请流程”的问题。现有证据仅涉及支付服务的技术文档，与年假申请流程无任何关联。\n\n### 排查步骤\n\n1. **确认检索范围**：已检索企业知识库，仅返回两条相同证据，均来自`payment-service`服务文档（支付预授权接口），内容涉及订单创建时的支付预授权技术流程，未包含任何人力资源或行政制度信息。\n2. **证据匹配性检查**：将检索结果与用户问题（年假申请流程）进行关键词比对，未发现“年假”“假期”“申请”“审批”等任何相关字段。\n\n### 引用来源\n\n- (payment-service 服务文档) [POST /api/payments/pre-authorize]：支付预授权，被 order-service 在创建订单流程中同步调用。（该证据为唯一可用来源，但内容与年假申请无关）\n\n### 已确认 / 未确认信息\n\n- **已确认**：知识库中没有年假申请流程相关条目。\n- **未确认**：公司年假申请流程的具体步骤、负责人、所需材料、审批时限等均未找到依据。\n\n---\n\n如需进一步排查，请提供以下信息或渠道：\n- 公司人力资源（HR）系统文档或制度文件\n- 内部OA/办公平台的假期管理模块说明\n- 相关负责部门（如人事部）的官方政策说明"
+    }
+  ],
+  "max_iterations_experiment": {
+    "3": {
+      "runs": [
+        {
+          "query": "order-service最近大量出现502，帮我分析可能原因并给出排查步骤",
+          "status": "answered",
+          "confidence": 0.85,
+          "iterations": 3,
+          "stop_reason": "max_iterations",
+          "latency_ms": 37423.6
+        },
+        {
+          "query": "inventory-service内存持续升高，响应变慢，怎么排查",
+          "status": "answered",
+          "confidence": 1.0,
+          "iterations": 2,
+          "stop_reason": "planner_sufficient",
+          "latency_ms": 33315.4
+        }
+      ],
+      "converged_naturally": 1,
+      "n": 2
+    },
+    "5": {
+      "runs": [
+        {
+          "query": "order-service最近大量出现502，帮我分析可能原因并给出排查步骤",
+          "status": "answered",
+          "confidence": 0.5,
+          "iterations": 3,
+          "stop_reason": "tool_budget_exhausted",
+          "latency_ms": 37963.4
+        },
+        {
+          "query": "inventory-service内存持续升高，响应变慢，怎么排查",
+          "status": "abstained",
+          "confidence": 0.1,
+          "iterations": 2,
+          "stop_reason": "tool_budget_exhausted",
+          "latency_ms": 32000.3
+        }
+      ],
+      "converged_naturally": 0,
+      "n": 2
+    },
+    "8": {
+      "runs": [
+        {
+          "query": "order-service最近大量出现502，帮我分析可能原因并给出排查步骤",
+          "status": "answered",
+          "confidence": 0.85,
+          "iterations": 4,
+          "stop_reason": "tool_budget_exhausted",
+          "latency_ms": 38936.7
+        },
+        {
+          "query": "inventory-service内存持续升高，响应变慢，怎么排查",
+          "status": "answered",
+          "confidence": 0.85,
+          "iterations": 5,
+          "stop_reason": "planner_sufficient",
+          "latency_ms": 46984.2
+        }
+      ],
+      "converged_naturally": 1,
+      "n": 2
+    }
+  }
+}

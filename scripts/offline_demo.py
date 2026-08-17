@@ -24,13 +24,14 @@ from app.agent.loop import AgentRuntime  # noqa: E402
 from app.agent.tools.kb_search import KnowledgeSearchTool  # noqa: E402
 from app.agent.tools.log_query import LogQueryTool  # noqa: E402
 from app.agent.tools.service_metrics import ServiceMetricsTool  # noqa: E402
+from app.agent.tools.ticket_search import TicketSearchTool  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.core.embedder import get_embedder  # noqa: E402
 from app.core.llm_client import get_llm_client  # noqa: E402
 from app.core.types import Chunk  # noqa: E402
 from app.rag.chunking import chunk_markdown  # noqa: E402
 from app.rag.pipeline import RetrievalPipeline  # noqa: E402
-from app.rag.reranker import get_reranker  # noqa: E402
+from app.rag.reranker import NoOpReranker, get_reranker  # noqa: E402
 from app.rag.retriever.hybrid import reciprocal_rank_fusion  # noqa: E402
 from app.rag.retriever.in_memory_dense import InMemoryDenseRetriever  # noqa: E402
 from app.rag.retriever.sparse import SparseRetriever  # noqa: E402
@@ -154,12 +155,58 @@ def experiment_retrieval_strategy() -> dict:
     return results
 
 
-def run_agent_demo() -> list[dict]:
-    print("\n=== Agent Loop Demo (MockLLM, 3个真实query) ===")
+def experiment_reranker_on_off() -> dict:
+    print("\n=== 实验4: Reranker 有无对比 (Fusion Top30 -> 直接截Top5 vs 精排后取Top5) ===")
+    chunks, _ = load_and_chunk(chunk_size=512, overlap=50)
+    embedder = get_embedder()
+    pipeline_with = build_pipeline(chunks, embedder, get_reranker())
+    pipeline_without = build_pipeline(chunks, embedder, NoOpReranker())
+
+    with_r = run_retrieval_eval(pipeline_with, chunks)
+    without_r = run_retrieval_eval(pipeline_without, chunks)
+    print(f"  with_reranker:    recall={with_r['overall_recall']} precision={with_r['overall_precision']} mrr={with_r['overall_mrr']}")
+    print(f"  without_reranker: recall={without_r['overall_recall']} precision={without_r['overall_precision']} mrr={without_r['overall_mrr']}")
+    return {"with_reranker": with_r, "without_reranker": without_r}
+
+
+def experiment_max_iterations() -> dict:
+    print("\n=== 实验7: Max Iterations 对比 (3/5/8, timeout统一放宽到60s以隔离变量) ===")
     chunks, doc_titles = load_and_chunk(chunk_size=512, overlap=50)
     embedder = get_embedder()
     pipeline = build_pipeline(chunks, embedder, get_reranker())
-    tools = [KnowledgeSearchTool(pipeline, doc_titles), LogQueryTool(), ServiceMetricsTool()]
+    llm_client = get_llm_client()
+
+    test_queries = [
+        "order-service最近大量出现502，帮我分析可能原因并给出排查步骤",
+        "inventory-service内存持续升高，响应变慢，怎么排查",
+    ]
+    results = {}
+    for max_iter in (3, 5, 8):
+        tools = [KnowledgeSearchTool(pipeline, doc_titles), LogQueryTool(), ServiceMetricsTool(), TicketSearchTool()]
+        runtime = AgentRuntime(llm_client, tools, max_iterations=max_iter, timeout_s=60.0)
+        runs = []
+        for q in test_queries:
+            r = runtime.run(q)
+            runs.append({
+                "query": q, "status": r.status, "confidence": r.confidence,
+                "iterations": r.iterations, "stop_reason": r.stop_reason,
+                "latency_ms": round(r.total_latency_ms, 1),
+            })
+        converged = sum(1 for run in runs if run["stop_reason"] == "planner_sufficient")
+        results[str(max_iter)] = {"runs": runs, "converged_naturally": converged, "n": len(runs)}
+        print(f"  max_iterations={max_iter}: converged_naturally={converged}/{len(runs)}")
+        for run in runs:
+            print(f"    - {run['query'][:24]}... -> status={run['status']} iterations={run['iterations']} "
+                  f"stop_reason={run['stop_reason']} latency={run['latency_ms']}ms")
+    return results
+
+
+def run_agent_demo() -> list[dict]:
+    print(f"\n=== Agent Loop Demo (LLM={settings.llm_provider}, 3个真实query) ===")
+    chunks, doc_titles = load_and_chunk(chunk_size=512, overlap=50)
+    embedder = get_embedder()
+    pipeline = build_pipeline(chunks, embedder, get_reranker())
+    tools = [KnowledgeSearchTool(pipeline, doc_titles), LogQueryTool(), ServiceMetricsTool(), TicketSearchTool()]
     runtime = AgentRuntime(get_llm_client(), tools, max_iterations=settings.agent_max_iterations,
                             timeout_s=settings.agent_timeout_s)
 
@@ -203,7 +250,11 @@ if __name__ == "__main__":
 
     chunk_size_results = experiment_chunk_size()
     strategy_results = experiment_retrieval_strategy()
+    reranker_results = experiment_reranker_on_off()
     agent_transcripts = run_agent_demo()
+    max_iter_results = experiment_max_iterations() if settings.llm_provider != "mock" else None
+    if max_iter_results is None:
+        print("\n=== 实验7: Max Iterations 对比 跳过 (需要真实LLM,当前LLM_PROVIDER=mock没有意义) ===")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = RESULTS_DIR / f"offline_run_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
@@ -213,7 +264,8 @@ if __name__ == "__main__":
                 "provider": {"embedder": settings.embedder_provider, "reranker": settings.reranker_provider, "llm": settings.llm_provider},
                 "n_docs": n_docs, "n_chunks_baseline": len(chunks),
                 "baseline_retrieval": baseline, "chunk_size_experiment": chunk_size_results,
-                "retrieval_strategy_experiment": strategy_results, "agent_demo": agent_transcripts,
+                "retrieval_strategy_experiment": strategy_results, "reranker_on_off_experiment": reranker_results,
+                "agent_demo": agent_transcripts, "max_iterations_experiment": max_iter_results,
             },
             ensure_ascii=False, indent=2,
         ),

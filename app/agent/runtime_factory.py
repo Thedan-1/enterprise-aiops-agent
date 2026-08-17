@@ -10,6 +10,7 @@ from app.agent.loop import AgentRuntime
 from app.agent.tools.kb_search import KnowledgeSearchTool
 from app.agent.tools.log_query import LogQueryTool
 from app.agent.tools.service_metrics import ServiceMetricsTool
+from app.agent.tools.ticket_search import TicketSearchTool
 from app.core.config import settings
 from app.core.embedder import get_embedder
 from app.core.llm_client import get_llm_client
@@ -47,6 +48,7 @@ def build_agent_runtime(session: Session) -> AgentRuntime:
         KnowledgeSearchTool(pipeline, doc_titles),
         LogQueryTool(),
         ServiceMetricsTool(),
+        TicketSearchTool(),
     ]
     return AgentRuntime(
         llm_client=get_llm_client(),

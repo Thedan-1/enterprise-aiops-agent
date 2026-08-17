@@ -78,7 +78,7 @@ class AgentRuntime:
             state.iteration += 1
 
         answer = self.llm_client.generate_answer(query, state.observations)
-        validation = validate(state.observations)
+        validation = validate(query, state.observations, self.llm_client)
         status = "answered" if validation.grounded else "abstained"
 
         return AgentRunResult(

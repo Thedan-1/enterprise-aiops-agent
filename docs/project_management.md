@@ -5,19 +5,22 @@
 | Phase | 内容 | 状态 |
 |---|---|---|
 | Phase 0 | 需求与架构（本文档 + architecture.md） | ✅ 完成 |
-| Phase 1 | 数据层：mock企业文档、DB models、docker-compose | 🔄 进行中 |
-| Phase 2 | Chunking + Embedding + pgvector 灌入 | 🔄 进行中 |
-| Phase 3 | BM25 + Dense + Hybrid Fusion | 🔄 进行中 |
-| Phase 4 | Reranker | 🔄 进行中 |
-| Phase 5 | Evaluation（30条评测集 + Retrieval指标） | 🔄 进行中 |
-| Phase 6 | Agent Loop + State + Stop Condition | 🔄 进行中 |
-| Phase 7 | 3个Tool（KB Search / Log Query / Service Metrics） | 🔄 进行中 |
-| Phase 8 | FastAPI收口 + 异常处理 + Structured Logging | 🔄 进行中 |
-| Phase 9 | Observability（retrieval_logs/agent_runs全链路） | 🔄 进行中 |
-| Phase 10 | 性能优化（暂缓，先有基线数字） | ⬜ 待开始 |
-| Phase 11 | 部署（Docker Compose） | 🔄 进行中 |
+| Phase 1 | 数据层：mock企业文档、DB models、docker-compose | ✅ 完成（代码就绪，Postgres本机未验证，见下方说明） |
+| Phase 2 | Chunking + Embedding + pgvector 灌入 | ✅ 完成（内存版验证通过，pgvector路径代码就绪） |
+| Phase 3 | BM25 + Dense + Hybrid Fusion | ✅ 完成，已跑真实对比实验 |
+| Phase 4 | Reranker | ✅ 完成，已跑真实有无对比实验 |
+| Phase 5 | Evaluation（30条评测集 + Retrieval指标） | ✅ 完成，多轮真实数字见 experiment_results.md |
+| Phase 6 | Agent Loop + State + Stop Condition | ✅ 完成，真实DeepSeek联调验证 |
+| Phase 7 | 4个Tool（KB Search / Log Query / Service Metrics / **Ticket Search**） | ✅ 完成（Ticket Tool是MVP稳定后追加的） |
+| Phase 8 | FastAPI收口 + 异常处理 + Structured Logging | ✅ 完成，含不依赖DB的集成测试 |
+| Phase 9 | Observability（retrieval_logs/agent_runs全链路） | ✅ 完成（代码就绪，需要真实Postgres环境才能端到端验证落库） |
+| Phase 10 | 性能优化 | ⬜ 待开始（已有真实延迟数据：Agent单次Run 30~47秒，见experiment_results.md，尚未优化） |
+| Phase 11 | 部署（Docker Compose） | ⬜ 代码就绪，本机因宿主机WSL2虚拟化未开启暂未验证 |
 
-> 本轮（自动执行）目标：把 Phase 1-9 的骨架代码全部写出来，做到本地可跑通 ingest → retrieval → agent loop → eval 全链路，且用 pytest 覆盖关键单测（chunking、fusion、stop condition）。LLM/Embedder 默认走 Mock Provider，不依赖外部网络。
+> 说明：本项目全程由AI辅助自动执行搭建，Phase 1-9的骨架代码、mock数据、评测集、单元/集成测试
+> 均已完成并跑出真实数字（而非只是"代码写完了"）。受限于本机环境（Docker Desktop因宿主机未开启
+> Windows虚拟化功能无法启动），Postgres+pgvector生产路径改用内存版实现完成等价验证，详见
+> `docs/experiment_results.md`"运行环境说明"一节。
 
 ## 2. 每阶段 Review 清单（每次实现后自查）
 
@@ -171,6 +174,23 @@ Agent不停止
   问题（如"1+1等于几"）也会先去查一次知识库，是有意的过度保守
 - **When to change**: 如果Intent分类能够可靠区分"纯通用常识问题"和"可能涉及企业内部
   定义的问题"，可以只对后者强制此规则
+
+### ADR-007: Validator 增加 Evidence Relevance 判断（修复真实bug）
+- **Decision**: `validate()` 不再只看"knowledge_search有没有返回evidence"，改成调用
+  `llm_client.is_evidence_relevant(query, evidence_texts)`，只有证据被判定为主题相关
+  才计入 `has_kb_evidence`
+- **Why**: DeepSeek联调发现真实bug——"公司年假申请流程"这个知识库外的问题，
+  Reranker返回的payment-service文档分数刚好压线超过0.5阈值，被当成"有证据"，
+  导致status误判为answered，即使回答正文里LLM自己说"证据不相关无法回答"。
+  纯分数阈值挡不住"分数过线但主题不对"这类情况，需要一次真正的语义相关性判断
+- **Alternatives**: 提高RERANKER_MIN_SCORE阈值（治标不治本，阈值提多高都可能有临界案例）；
+  让Answer Validator解析LLM生成的答案文本里是否包含"证据不足"字样（脆弱，依赖措辞，
+  语言风格一变就失效）
+- **Trade-offs**: 真实Provider下每次有KB证据时多一次LLM调用（增加延迟和成本），
+  Mock Provider退化成词面重合度启发式（本身也不完美，只是比"完全不检查"好）
+- **When to change**: 如果这次调用带来的延迟在生产场景下不可接受，可以考虑把这次判断
+  合并进generate_answer的同一次调用里（一次调用里既生成答案又输出relevant字段），
+  用结构化输出减少一次往返，当前为了让Validator逻辑独立可测试，先保持两次调用
 
 ### ADR-004: 不使用Redis
 - **Decision**: MVP不引入缓存层

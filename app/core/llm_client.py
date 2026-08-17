@@ -34,6 +34,15 @@ class LLMClient(ABC):
     @abstractmethod
     def generate_answer(self, query: str, observations: list[ObservationRecord]) -> str: ...
 
+    @abstractmethod
+    def is_evidence_relevant(self, query: str, evidence_texts: list[str]) -> bool:
+        """Evidence Validation（对应需求里的Context Relevance）：判断检索到的证据
+        是否真的能支撑回答这个问题，而不是"分数刚好压线过了阈值但主题不相关"。
+        这是一个窄范围的相关性判断任务，不是让LLM自评"我有多确信"（那个不可靠，
+        见validator.py顶部说明），是两回事：相关性判断可以对照具体证据文本核实，
+        置信度自评没有对照物。"""
+        ...
+
 
 def _extract_service(query: str) -> str | None:
     m = re.search(r"([a-zA-Z\-]+(?:service|服务))", query, re.IGNORECASE)
@@ -83,6 +92,13 @@ class MockLLMClient(LLMClient):
                     tool_input={"service": service, "time_range": "last_10_minutes", "level": "ERROR"},
                     sufficient=False,
                 )
+            if metrics_abnormal and "ticket_search" not in called and "ticket_search" in tool_names and service:
+                return PlannerDecision(
+                    reasoning="确认存在异常,查一下历史上这个服务是否有过类似的已解决工单,参考修复方案",
+                    tool_name="ticket_search",
+                    tool_input={"service": service},
+                    sufficient=False,
+                )
 
         return PlannerDecision(reasoning="已收集足够证据,可以给出结论", tool_name=None, tool_input=None, sufficient=True)
 
@@ -114,6 +130,19 @@ class MockLLMClient(LLMClient):
         else:
             lines.append("注意：未检索到知识库证据，以上结论仅基于实时指标/日志观察，置信度较低。")
         return "\n".join(lines)
+
+    def is_evidence_relevant(self, query: str, evidence_texts: list[str]) -> bool:
+        """Mock没有语义理解能力，退化成词面重合度启发式：query的token至少有
+        一部分出现在证据里，才算相关。这是故意粗糙的近似，真实Provider应该
+        用LLM做语义判断，见PromptedLLMClient的实现。"""
+        from app.rag.retriever.sparse import tokenize  # 延迟导入,避免core->rag的静态耦合面扩大
+
+        query_tokens = set(tokenize(query))
+        if not query_tokens or not evidence_texts:
+            return False
+        evidence_tokens = set(tokenize(" ".join(evidence_texts)))
+        overlap_ratio = len(query_tokens & evidence_tokens) / len(query_tokens)
+        return overlap_ratio >= 0.2
 
 
 class PromptedLLMClient(LLMClient):
@@ -174,6 +203,18 @@ class PromptedLLMClient(LLMClient):
             "回答需包含：诊断结论、排查步骤、引用来源。"
         )
         return self._call(system, f"用户问题: {query}\n\n可用证据:\n{obs_desc or '(无证据)'}")
+
+    def is_evidence_relevant(self, query: str, evidence_texts: list[str]) -> bool:
+        if not evidence_texts:
+            return False
+        evidence_block = "\n---\n".join(t[:300] for t in evidence_texts[:5])
+        system = (
+            "你是严格的证据相关性审核员。只判断:下面这些证据内容,是否真的能支撑回答用户的问题"
+            "(哪怕只能支撑部分回答也算相关;如果证据讨论的是完全不同的主题,即使有零星字面重合也判不相关)。"
+            "只输出一个词: yes 或 no,不要输出其他任何内容。"
+        )
+        out = self._call(system, f"用户问题: {query}\n\n证据:\n{evidence_block}")
+        return out.strip().lower().startswith("y")
 
 
 class AnthropicLLMClient(PromptedLLMClient):

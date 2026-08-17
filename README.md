@@ -3,17 +3,17 @@
 面试导向的 RAG + Agent 项目。完整架构设计见 [`docs/architecture.md`](docs/architecture.md)，
 开发进度和故障排查手册见 [`docs/project_management.md`](docs/project_management.md)。
 
-## 当前状态（自动生成骨架 + 真实联调后的状态，未夸大）
+## 当前状态（真实联调后的状态，未夸大）
 
-- RAG Pipeline（Chunking → BM25 + Dense → RRF Fusion → Reranker → Evidence）：已实现，**已用真实数据跑通**，见 [`docs/experiment_results.md`](docs/experiment_results.md)
-- Agent Loop（Intent → Planner → Tool Loop(结构化Stop Condition) → Answer → Validator）：已实现，**已用真实query跑通**，包括一次真实的Abstention缺陷发现+修复（见experiment_results.md）
-- 3个 Tool：knowledge_search（真实Pipeline）、log_query / service_metrics（mock数据，接口可替换真实系统）
+- RAG Pipeline（Chunking → BM25 + Dense → RRF Fusion → Reranker → Evidence）：已实现，**已跑多组真实对比实验**（Chunk Size / Dense-BM25-Hybrid / Reranker有无），见 [`docs/experiment_results.md`](docs/experiment_results.md)
+- Agent Loop（Intent → Planner → Tool Loop(结构化Stop Condition) → Answer → Evidence Validation）：已实现，**接入真实DeepSeek LLM并跑通**，联调过程中发现并修复了两个真实缺陷（Planner跳过知识库检索、Validator误判不相关证据为有效证据），过程记录在 ADR-006/ADR-007
+- **4个 Tool**：knowledge_search（真实Pipeline）、log_query / service_metrics / **ticket_search**（mock数据，接口可替换真实系统）
 - 9篇原创mock企业文档、30条结构化评测集（10关键词/10语义/5多证据/5知识库外）
-- 单元测试：24个，全部通过（Chunking、RRF Fusion、Agent Stop Condition、Eval Metrics、Mock Planner收敛性）
+- 单元测试 33 个 + 集成测试 4 个，全部通过；集成测试用 dependency override + FakeSession 验证 `/api/chat` 契约，不需要真实数据库
 - **Postgres+pgvector 生产路径代码已实现但本机环境暂未跑通**：宿主机 Docker Desktop 因未开启
-  Windows "Virtual Machine Platform" 功能无法启动 WSL2，这需要管理员权限+重启修复。已改用
+  Windows "Virtual Machine Platform" 功能无法启动 WSL2，这需要管理员权限+重启修复（用户已知悉，自行处理中）。已改用
   `InMemoryDenseRetriever`（依赖注入，替换Dense检索的唯一实现）跑通全部实验，详见 `docs/experiment_results.md`
-- **默认 Provider 是 Mock/占位实现**（见下方"重要限制"），当前所有数字反映占位Embedder/Reranker/LLM的真实能力，不代表生产级效果
+- Embedder/Reranker 仍是占位实现（mock_hash / heuristic），LLM 已经是真实的（DeepSeek）——见下方"重要限制"
 
 ## 重要限制：默认 Provider 是 Mock/占位实现
 
@@ -33,8 +33,8 @@
 
 ```bash
 python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python scripts/offline_demo.py   # Retrieval评测+3组实验+Agent Demo，真实输出见 docs/experiment_results.md
-.venv\Scripts\python -m pytest tests/unit -v   # 24个单元测试
+.venv\Scripts\python scripts/offline_demo.py   # Retrieval评测+5组实验+4工具Agent Demo，真实输出见 docs/experiment_results.md
+.venv\Scripts\python -m pytest tests/ -v       # 33个单元测试 + 4个集成测试
 ```
 
 ### 方式B：完整生产路径（需要 Docker 能正常启动 Postgres+pgvector）
@@ -57,10 +57,12 @@ uvicorn app.main:app --reload          # 启动API, POST /api/chat {"query": "..
 - [ ] 开启宿主机 Windows "Virtual Machine Platform" 功能（需管理员权限+重启），之后跑 `docker compose up -d postgres` + `scripts/ingest.py` + `eval/run_eval.py`，验证 Postgres+pgvector 生产路径和内存版路径数字一致
 - [x] Chunk Size (256/512/1024) 对比实验 —— 已跑，真实数据见 `docs/experiment_results.md`
 - [x] Dense-only / BM25-only / Hybrid 对比实验 —— 已跑，真实数据见 `docs/experiment_results.md`（结果和"Hybrid应该更好"的直觉不一致，已如实记录分析）
+- [x] Reranker 有无对比实验 —— 已跑，当前占位Reranker下几乎无差异，分析见 `docs/experiment_results.md`
+- [x] Max Iterations (3/5/8) 对比实验 —— 已跑，真实发现是 tool_budget 而非 max_iterations 在起限制作用
 - [x] Abstention（拒答）机制验证 —— 联调中发现真实缺陷并修复，见 `docs/experiment_results.md`
-- [x] 接入真实LLM（DeepSeek）—— 已完成，且真实运行又发现并修复了一个Planner层的防幻觉gap，见 ADR-006
-- [ ] 修复"证据主题不相关但压线通过分数阈值"导致status误判为answered的问题（DeepSeek联调发现，见experiment_results.md最后一节）——需要在Validator里加语义相关性校验，不能只看分数阈值
-- [ ] 换真实 Embedding 模型（`EMBEDDER_PROVIDER=openai`）重跑全部实验 —— 当前Retrieval数字仍建立在占位Embedder之上，是下一步最重要的验证
-- [ ] Reranker有无对比、Max Iterations对Task Success Rate影响 —— 还没跑
-- [ ] FastAPI 集成测试（当前只有不依赖DB的单元测试）
-- [ ] Ticket工单Tool（第4个Tool，MVP稳定后再加）
+- [x] 接入真实LLM（DeepSeek）—— 已完成，真实运行发现并修复了Planner层的防幻觉gap（ADR-006）
+- [x] 修复"证据主题不相关但压线通过分数阈值"导致status误判为answered的问题 —— 已修复（Evidence Relevance判断，ADR-007），有回归测试
+- [x] FastAPI 集成测试 —— 已完成，`tests/integration/test_chat_api.py`，不依赖真实DB
+- [x] Ticket工单Tool（第4个Tool）—— 已完成，4个工具协同验证过
+- [ ] 换真实 Embedding 模型（`EMBEDDER_PROVIDER=openai`）+ 真实 Cross-Encoder Reranker 重跑全部 Retrieval 实验 —— 当前数字仍建立在占位Embedder/Reranker之上，是唯一还没做的、最重要的后续验证
+- [ ] Agent Run 延迟优化 —— 真实测得单次30~47秒，主要是LLM串行调用开销，还没做并行化/流式
