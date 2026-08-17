@@ -1,7 +1,9 @@
 # 企业智能运维诊断 Agent（Enterprise Intelligent AIOps Diagnosis Agent）
 
 面试导向的 RAG + Agent 项目。完整架构设计见 [`docs/architecture.md`](docs/architecture.md)，
-开发进度和故障排查手册见 [`docs/project_management.md`](docs/project_management.md)。
+开发进度和故障排查手册见 [`docs/project_management.md`](docs/project_management.md)，
+真实实验数据见 [`docs/experiment_results.md`](docs/experiment_results.md)，
+**面试讲稿大纲 + 100题问题库见 [`docs/interview_prep.md`](docs/interview_prep.md)**。
 
 ## 当前状态（真实联调后的状态，未夸大）
 
