@@ -32,11 +32,12 @@ from app.rag.reranker import get_reranker
 from scripts.offline_demo import build_pipeline, load_and_chunk
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "offline_app.log"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging()
+    setup_logging(log_file=LOG_FILE)
     chunks, doc_titles = load_and_chunk(chunk_size=512, overlap=50)
     pipeline = build_pipeline(chunks, get_embedder(), get_reranker())
     tools = [

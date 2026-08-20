@@ -1,8 +1,13 @@
-"""结构化日志：每条日志都是一行 JSON，贯穿 request_id，便于按 request_id grep 出完整链路。"""
+"""结构化日志：每条日志都是一行 JSON，贯穿 request_id，便于按 request_id grep 出完整链路。
+
+offline_app.py 额外把日志写到 logs/offline_app.log 这个文件——这不只是为了排查问题，
+是 data/real/self_logs.py 的数据来源：让 log_query Tool 在查"这个系统自己"的时候，
+返回的是这个进程真实写下的日志，不是编的数据。"""
 import json
 import logging
 import sys
 import time
+from pathlib import Path
 
 
 class JsonFormatter(logging.Formatter):
@@ -21,11 +26,15 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False)
 
 
-def setup_logging(level: int = logging.INFO) -> None:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter())
+def setup_logging(level: int = logging.INFO, log_file: Path | None = None) -> None:
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+    for h in handlers:
+        h.setFormatter(JsonFormatter())
     root = logging.getLogger()
-    root.handlers = [handler]
+    root.handlers = handlers
     root.setLevel(level)
 
 
