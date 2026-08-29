@@ -5,8 +5,8 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Tests](https://img.shields.io/badge/tests-64%20passed-brightgreen)](#验证项目)
-[![Retrieval](https://img.shields.io/badge/Recall%405-0.9363-blue)](#真实评测结果)
+[![Tests](https://img.shields.io/badge/tests-66%20passed-brightgreen)](#验证项目)
+[![Retrieval](https://img.shields.io/badge/Recall%405-0.9209-blue)](#真实评测结果)
 
 OpsPilot 面向企业内部开发和运维人员。当用户输入“订单服务最近大量 502”时，它不会直接让大模型凭经验回答，而是自主选择知识库、日志、服务指标和历史工单等只读工具，收集证据后再给出诊断、排查步骤、引用和置信度。
 
@@ -21,7 +21,7 @@ OpsPilot 面向企业内部开发和运维人员。当用户输入“订单服�
 | 这真的是 Agent 吗？ | 自研有限状态循环：判断下一步、调用工具、观察结果、继续或停止；有总超时、工具预算和最大迭代次数 |
 | RAG 是不是黑盒？ | 保留 BM25、Dense、RRF Fusion、Reranker、最终 Context 的候选、分数和分阶段延迟 |
 | 如何减少幻觉？ | Evidence-first 生成、证据相关性校验、引用、置信度和无证据拒答 |
-| 如何证明检索有效？ | 100 条结构化评测样本；计算 Recall@K、Precision@K、MRR、Hit Rate，不使用主观“感觉” |
+| 如何证明检索有效？ | 110 条结构化评测样本；计算 Recall@K、Precision@K、MRR、Hit Rate，不使用主观“感觉” |
 | Tool 挂了怎么办？ | 超时、有限重试、错误 Observation、降级回答；不会无限循环或伪造工具结果 |
 | 企业边界在哪里？ | 登录、RBAC、租户隔离、只读工具白名单、输入防护、限流和审计日志 |
 | 规模扩大怎么办？ | MVP 使用 PostgreSQL + pgvector；只有实际向量规模、QPS 或延迟证明瓶颈后才迁移专业组件 |
@@ -112,21 +112,21 @@ Retriever 的职责是从较大的候选集合中保持高 Recall；Reranker 使
 
 | 指标 | 结果 | 说明 |
 |---|---:|---|
-| Evaluation Cases | 100 | 关键词、语义、多证据、知识库外问题 |
-| Recall@5 | **0.9363** | 正确证据被 Top-5 找回的比例 |
-| Precision@5 | **0.2418** | Top-5 中相关证据的比例；仍有优化空间 |
-| MRR | **0.8830** | 第一条相关结果排名质量 |
-| 多证据 Recall | **0.6667** | 当前最明确的 Retrieval 弱项 |
-| 冷查询平均延迟 | **2159 ms** | 本地真实 Embedding + Cross-Encoder |
-| 冷查询 P95 | **2984 ms** | 单机、当前语料规模 |
-| 精确查询缓存命中平均延迟 | **0.27 ms** | 仅说明缓存层开销，不代表端到端 Agent 延迟 |
+| Evaluation Cases | 110 | 关键词、语义、15 条多证据、知识库外问题 |
+| Recall@5 | **0.9209** | 从 0.9363 小幅下降；新增相似文档增加排序竞争 |
+| Precision@5 | **0.2626** | 从 0.2418 提升 |
+| MRR | **0.8754** | 从 0.8830 小幅下降 |
+| 多证据 Recall | **0.7444** | 从 0.6667 提升，仍是重点优化项 |
+| 冷查询平均延迟 | **1635.8 ms** | 29 文档、3 个查询的小样本基准 |
+| 冷查询 P95 | **1732.9 ms** | 未观察到扩库退化，但样本不足以证明性能提升 |
+| 精确查询缓存命中平均延迟 | **0.243 ms** | 仅说明缓存层开销，不代表端到端 Agent 延迟 |
 
 真实实验还发现：当前数据集上，Cross-Encoder Reranker 并非所有指标都变好。项目保留这个负结果，并将“扩大高质量标注集、分析被降权案例”列为后续实验，而不是为了简历修改数字。
 
 ## 数据与评测集
 
-- 25 篇原创模拟企业文档，覆盖 API、Nginx、数据库、Redis、Kubernetes、微服务、故障案例与 SOP；
-- 100 条结构化评测 Case，含关键词问题、语义问题、多证据问题和知识库不存在问题；
+- 29 篇原创模拟企业文档，覆盖 API、Nginx、数据库、Redis、Kubernetes、微服务、故障案例与 SOP；
+- 110 条结构化评测 Case，含关键词问题、语义问题、多证据问题和知识库不存在问题；
 - 每条 Case 包含 `question`、`ground_truth`、`expected_answer`、类型与难度；
 - 数据质量门禁检查重复问题、无效文档引用、类别分布和必填字段；
 - 检索、Answer、Agent 和系统指标分层，避免用 LLM 打分掩盖底层召回问题。
@@ -193,7 +193,7 @@ docker compose up -d postgres
 ## 验证项目
 
 ```powershell
-# 64 个单元、集成、安全与边界测试
+# 66 个单元、集成、安全与边界测试
 .\.venv\Scripts\python -m pytest tests -q
 
 # 评测数据质量门禁

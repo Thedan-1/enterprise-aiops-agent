@@ -30,6 +30,19 @@ OUT_OF_SCOPE = [
     "给我推荐一部电影", "财务报销需要谁审批",
 ]
 
+MULTI_EVIDENCE_CASES = [
+    ("Nginx 502升高且下游QPS是入口两倍，如何判断是否发生重试放大", ["nginx_502_gateway_troubleshooting", "nginx_upstream_retry_storm"], ["重试", "upstream"]),
+    ("订单接口CPU不高但连接池排队，数据库会话都在等锁，排查链路是什么", ["database_connection_pool", "postgresql_lock_wait_runbook"], ["阻塞", "连接池"]),
+    ("数据库死锁和普通锁等待有什么区别，分别应该收集什么证据", ["database_deadlock", "postgresql_lock_wait_runbook"], ["死锁", "pg_locks"]),
+    ("Redis P99尖刺同时evicted_keys增长，如何区分淘汰和系统延迟", ["redis_eviction", "redis_latency_spike_runbook"], ["evicted_keys", "latency"]),
+    ("缓存命中率下降而Redis自身延迟正常，为什么应用仍可能变慢", ["redis_common_issues", "redis_latency_spike_runbook"], ["回源", "应用"]),
+    ("Pod反复重启并显示OOMKilled，应该结合哪些容器状态和资源证据", ["kubernetes_pod_restart", "kubernetes_crashloop_runbook"], ["OOMKilled", "last state"]),
+    ("慢启动应用被liveness反复杀死，为什么startup probe能帮助定位", ["kubernetes_pod_restart", "kubernetes_crashloop_runbook"], ["liveness", "startup"]),
+    ("发布后Pod进入CrashLoopBackOff，如何把发布变更和上一次容器日志关联起来", ["deployment_rollback_sop", "kubernetes_crashloop_runbook"], ["previous", "发布"]),
+    ("Nginx超时后自动重试写请求，可能同时造成哪些可用性和数据一致性风险", ["nginx_upstream_retry_storm", "api_rate_limit"], ["幂等", "放大"]),
+    ("Redis大Key、淘汰和延迟尖刺同时出现时，怎样建立而不是猜测根因链", ["redis_hot_key", "redis_eviction", "redis_latency_spike_runbook"], ["大 key", "延迟"]),
+]
+
 
 def main() -> None:
     cases = json.loads(TARGET.read_text(encoding="utf-8"))[:30]
@@ -51,10 +64,15 @@ def main() -> None:
             "difficulty": "hard", "ground_truth_doc_slugs": [], "expected_answer_contains": ["证据不足"],
         })
         next_id += 1
-    assert len(cases) == 100
+    for question, slugs, expected in MULTI_EVIDENCE_CASES:
+        cases.append({
+            "id": f"eval_{next_id:03d}", "question": question, "category": "multi_evidence",
+            "difficulty": "hard", "ground_truth_doc_slugs": slugs, "expected_answer_contains": expected,
+        })
+        next_id += 1
+    assert len(cases) == 110
     TARGET.write_text(json.dumps(cases, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
     main()
-

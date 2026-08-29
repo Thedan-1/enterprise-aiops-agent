@@ -18,6 +18,17 @@ def percentile(values, p):
     return ordered[min(len(ordered) - 1, round((len(ordered) - 1) * p))]
 
 
+def build_benchmark_result(chunks, cold: list[float], warm: list[float], run_at: str) -> dict:
+    return {
+        "run_at": run_at,
+        "documents": len({chunk.document_id for chunk in chunks}),
+        "chunks": len(chunks),
+        "cold_ms": {"mean": statistics.mean(cold), "p95": percentile(cold, .95)},
+        "warm_ms": {"mean": statistics.mean(warm), "p95": percentile(warm, .95)},
+        "note": "Model loading is excluded; warm measurements are exact-query in-process cache hits.",
+    }
+
+
 def main():
     chunks, _ = load_and_chunk()
     pipeline = build_pipeline(chunks, get_embedder(), get_reranker())
@@ -27,12 +38,9 @@ def main():
         start = time.perf_counter(); pipeline.retrieve(query); cold.append((time.perf_counter() - start) * 1000)
         for _ in range(5):
             start = time.perf_counter(); pipeline.retrieve(query); warm.append((time.perf_counter() - start) * 1000)
-    result = {
-        "run_at": datetime.now(timezone.utc).isoformat(), "documents": 25, "chunks": len(chunks),
-        "cold_ms": {"mean": statistics.mean(cold), "p95": percentile(cold, .95)},
-        "warm_ms": {"mean": statistics.mean(warm), "p95": percentile(warm, .95)},
-        "note": "Model loading is excluded; warm measurements are exact-query in-process cache hits.",
-    }
+    result = build_benchmark_result(
+        chunks, cold, warm, datetime.now(timezone.utc).isoformat()
+    )
     output = Path("eval/results") / f"retrieval_benchmark_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
     output.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps(result, indent=2))
