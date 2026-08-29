@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Tests](https://img.shields.io/badge/tests-66%20passed-brightgreen)](#验证项目)
+[![Tests](https://img.shields.io/badge/tests-73%20passed-brightgreen)](#验证项目)
 [![Retrieval](https://img.shields.io/badge/Recall%405-0.9209-blue)](#真实评测结果)
 
 OpsPilot 面向企业内部开发和运维人员。当用户输入“订单服务最近大量 502”时，它不会直接让大模型凭经验回答，而是自主选择知识库、日志、服务指标和历史工单等只读工具，收集证据后再给出诊断、排查步骤、引用和置信度。
@@ -61,6 +61,8 @@ Agent Runtime 和 Retrieval Pipeline 是两个独立边界：Agent 决定**是�
 - 去重与停止条件：避免同参数重复调用；
 - Tool Policy：模型只能建议动作，确定性策略层决定是否允许执行；
 - Graceful Degradation：部分工具不可用时，明确说明缺失信息并基于剩余证据回答。
+
+Tool 调用有单次硬超时、显式瞬时错误重试和指数退避；DeepSeek 对 429、5xx、网络超时最多尝试 3 次。意图识别、Planner 或答案生成最终失败时，API 返回结构化错误和人工升级建议，不把 Provider 异常直接暴露给用户。
 
 当流程分支、持久化恢复、人工审批或长任务状态明显复杂后，再考虑迁移 LangGraph；当前规模自行维护状态更透明，也更容易解释。
 
@@ -193,7 +195,7 @@ docker compose up -d postgres
 ## 验证项目
 
 ```powershell
-# 66 个单元、集成、安全与边界测试
+# 73 个单元、集成、安全与边界测试
 .\.venv\Scripts\python -m pytest tests -q
 
 # 评测数据质量门禁
