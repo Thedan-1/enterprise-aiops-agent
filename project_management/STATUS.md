@@ -9,14 +9,15 @@
 | 身份、权限、多租户 | 完成（演示路径） | signed token / RBAC / isolated runtimes |
 | 安全与审计 | 完成（演示路径） | guard / limiter / JSONL audit / threat model |
 | 延迟基线与优化 | 完成 | cold/warm benchmark + TTL/LRU cache |
-| GitHub 公开交付 | 完成（CI 外部阻塞） | public repo / PR #1；Actions 因账号 billing lock 未启动 |
+| GitHub 公开交付 | 进行中（CI 外部阻塞） | public repo / PR #1；README 已重构并加入真实运行截图 |
 
 ## V2 实际结果
 
 - 100-case Recall@5：0.9363；MRR：0.8830；多证据 Recall：0.6667。
 - 首次 Retrieval 平均：2159ms；重复 query 缓存命中平均：0.27ms。
-- 自动化测试：58 个通过（发布前仍以最终 CI 数量为准）。
+- 自动化测试：62 个通过（发布前仍以最终 CI 数量为准）。
 - 已验证：401 未登录、403 越权审计、审计员 tenant scope、Prompt Injection 阻断、正常问答。
+- 真实浏览器回归：中文“订单服务”可规范化为 `order-service`，真实模型完成 3 次工具调用并形成证据链。
 
 ## 外部阻塞
 

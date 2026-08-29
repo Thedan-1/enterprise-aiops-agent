@@ -1,4 +1,5 @@
 from app.agent.tools.base import Tool
+from app.agent.tools.service_names import canonical_service_name
 from app.core.types import ToolResult
 from data.mock.metrics import get_metrics
 from data.real.host_metrics import get_host_metrics
@@ -29,7 +30,8 @@ class ServiceMetricsTool(Tool):
             )
             return ToolResult(success=True, summary=summary, debug=m)
 
-        m = get_metrics(service)
+        canonical_service = canonical_service_name(service)
+        m = get_metrics(canonical_service)
         if m["status"] == "unknown":
             return ToolResult(success=False, summary="", error=f"未找到服务 '{service}' 的指标数据")
         label = "异常" if m["status"] == "degraded" else "正常"

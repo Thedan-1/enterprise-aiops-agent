@@ -1,5 +1,6 @@
 from app.agent.tools.base import Tool
 from app.agent.tools.service_metrics import _is_self_query
+from app.agent.tools.service_names import canonical_service_name
 from app.core.types import ToolResult
 from data.mock.logs import get_logs
 from data.real.self_logs import get_self_logs
@@ -23,11 +24,12 @@ class LogQueryTool(Tool):
             )
             return ToolResult(success=True, summary=summary, debug={"raw_lines": lines})
 
-        lines = get_logs(service=service, time_range=time_range, level=level)
+        canonical_service = canonical_service_name(service)
+        lines = get_logs(service=canonical_service, time_range=time_range, level=level)
         has_errors = any("ERROR" in l for l in lines) if level.upper() == "ERROR" else bool(lines)
         summary = (
-            f"{service} 在 {time_range} 内发现 {len(lines)} 条{level}日志: " + " | ".join(lines[:3])
+            f"{canonical_service} 在 {time_range} 内发现 {len(lines)} 条{level}日志: " + " | ".join(lines[:3])
             if has_errors
-            else f"{service} 在 {time_range} 内无{level}级别日志"
+            else f"{canonical_service} 在 {time_range} 内无{level}级别日志"
         )
         return ToolResult(success=True, summary=summary, debug={"raw_lines": lines})

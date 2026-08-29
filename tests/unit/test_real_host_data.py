@@ -39,8 +39,23 @@ def test_service_metrics_tool_routes_normal_query_to_mock():
     assert "QPS" in result.summary  # mock数据结构里才有QPS字段,真实host数据没有
 
 
+def test_service_metrics_tool_accepts_chinese_business_service_name():
+    result = ServiceMetricsTool().call(service="订单服务")
+
+    assert result.success is True
+    assert "order-service" in result.summary
+    assert result.debug["service"] == "order-service"
+
+
 def test_log_query_tool_routes_self_query_to_real_log_file():
     tool = LogQueryTool()
     result = tool.call(service="这个系统")
     assert result.success is True
     assert "AIOps Agent" in result.summary
+
+
+def test_log_query_tool_accepts_chinese_business_service_name():
+    result = LogQueryTool().call(service="订单服务")
+
+    assert result.success is True
+    assert any("order-service" in line for line in result.debug["raw_lines"])

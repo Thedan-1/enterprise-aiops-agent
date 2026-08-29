@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="AIOps Agent (Offline Demo Mode)", lifespan=lifespan)
+app = FastAPI(title="OpsPilot (Offline Demo Mode)", lifespan=lifespan)
 
 
 class ChatRequest(BaseModel):
