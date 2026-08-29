@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Enterprise AIOps Diagnosis Agent", lifespan=lifespan)
+app = FastAPI(title="OpsPilot — Enterprise AIOps Diagnosis Agent", lifespan=lifespan)
 app.include_router(chat_router, prefix="/api")
 
 

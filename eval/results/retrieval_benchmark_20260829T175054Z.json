@@ -1,0 +1,14 @@
+{
+  "run_at": "2026-08-29T17:50:54.016940+00:00",
+  "documents": 25,
+  "chunks": 66,
+  "cold_ms": {
+    "mean": 2159.082833333135,
+    "p95": 2983.871399999771
+  },
+  "warm_ms": {
+    "mean": 0.27325333358021453,
+    "p95": 0.35120000029564835
+  },
+  "note": "Model loading is excluded; warm measurements are exact-query in-process cache hits."
+}

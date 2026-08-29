@@ -28,7 +28,7 @@ class AgentRunResult:
     intent: str
     answer: str
     confidence: float
-    status: str  # answered / abstained / error
+    status: str  # answered / partial / abstained / error
     stop_reason: str
     iterations: int
     observations: list[ObservationRecord] = field(default_factory=list)
@@ -42,21 +42,63 @@ class AgentRuntime:
         self.max_iterations = max_iterations
         self.timeout_s = timeout_s
 
-    def run(self, query: str, request_id: str | None = None) -> AgentRunResult:
+    @staticmethod
+    def _llm_failure_result(state: AgentState, stage: str) -> AgentRunResult:
+        return AgentRunResult(
+            request_id=state.request_id,
+            query=state.query,
+            intent=state.intent,
+            answer=(
+                "诊断模型暂时不可用，本次没有生成结论。"
+                "请稍后重试；如故障紧急，请按人工值班流程升级处理。"
+            ),
+            confidence=0.0,
+            status="error",
+            stop_reason=f"llm_failure:{stage}",
+            iterations=state.iteration,
+            observations=state.observations,
+            total_latency_ms=state.elapsed_ms(),
+        )
+
+    def run(
+        self,
+        query: str,
+        request_id: str | None = None,
+        allowed_tool_names: set[str] | None = None,
+    ) -> AgentRunResult:
         request_id = request_id or str(uuid.uuid4())
         state = AgentState(
             request_id=request_id, query=query, max_iterations=self.max_iterations, timeout_s=self.timeout_s
         )
-        state.intent = self.llm_client.classify_intent(query)
+        try:
+            state.intent = self.llm_client.classify_intent(query)
+        except Exception:  # noqa: BLE001 - provider outages must not become an unhandled API 500
+            logger.exception(
+                "llm intent classification failed",
+                extra={"request_id": request_id, "stage": "intent"},
+            )
+            return self._llm_failure_result(state, "intent")
         logger.info("intent classified", extra={"request_id": request_id, "stage": "intent"})
 
-        tool_specs = [t.spec() for t in self.tools_by_name.values()]
+        allowed = allowed_tool_names if allowed_tool_names is not None else set(self.tools_by_name)
+        tool_specs = [t.spec() for name, t in self.tools_by_name.items() if name in allowed]
 
         while True:
-            decision = self.llm_client.plan_next_action(query, state.intent, state.observations, tool_specs)
+            try:
+                decision = self.llm_client.plan_next_action(query, state.intent, state.observations, tool_specs)
+            except Exception:  # noqa: BLE001 - return a typed failure instead of leaking provider errors
+                logger.exception(
+                    "llm planner failed",
+                    extra={"request_id": request_id, "stage": "planner"},
+                )
+                return self._llm_failure_result(state, "planner")
             stop, reason = state.should_stop(decision)
             if stop:
                 state.stop_reason = reason
+                break
+
+            if decision.tool_name not in allowed:
+                state.stop_reason = f"forbidden_tool:{decision.tool_name}"
                 break
 
             tool = self.tools_by_name.get(decision.tool_name)
@@ -77,9 +119,28 @@ class AgentRuntime:
             )
             state.iteration += 1
 
-        answer = self.llm_client.generate_answer(query, state.observations)
-        validation = validate(query, state.observations, self.llm_client)
-        status = "answered" if validation.grounded else "abstained"
+        try:
+            answer = self.llm_client.generate_answer(query, state.observations)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "llm answer generation failed",
+                extra={"request_id": request_id, "stage": "answer"},
+            )
+            return self._llm_failure_result(state, "answer")
+        try:
+            validation = validate(query, state.observations, self.llm_client)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "llm evidence validation failed",
+                extra={"request_id": request_id, "stage": "validation"},
+            )
+            return self._llm_failure_result(state, "validation")
+        if not validation.grounded:
+            status = "abstained"
+        elif any(not observation.result.success for observation in state.observations):
+            status = "partial"
+        else:
+            status = "answered"
 
         return AgentRunResult(
             request_id=request_id,

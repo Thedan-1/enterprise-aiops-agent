@@ -1,15 +1,17 @@
 from app.agent.tools.base import Tool
+from app.agent.tools.service_names import TenantScopedService
 from app.core.types import ToolResult
 from data.mock.tickets import search_tickets
 
 
-class TicketSearchTool(Tool):
+class TicketSearchTool(TenantScopedService, Tool):
     name = "ticket_search"
     description = "查询历史故障工单及其解决方案，可按服务名和/或关键词检索"
     input_schema = {"service": "str(optional)", "query": "str(optional)"}
 
     def _call(self, service: str = "", query: str = "") -> ToolResult:
-        tickets = search_tickets(query=query, service=service)
+        canonical_service = self.scoped_service_name(service) if service else ""
+        tickets = search_tickets(query=query, service=canonical_service)
         if not tickets:
             return ToolResult(success=True, summary="未找到相关历史工单", debug={"tickets": []})
         summary = f"找到{len(tickets)}条相关历史工单: " + "; ".join(

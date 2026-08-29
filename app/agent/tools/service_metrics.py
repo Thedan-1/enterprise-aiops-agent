@@ -1,4 +1,5 @@
 from app.agent.tools.base import Tool
+from app.agent.tools.service_names import TenantScopedService, canonical_service_name
 from app.core.types import ToolResult
 from data.mock.metrics import get_metrics
 from data.real.host_metrics import get_host_metrics
@@ -11,7 +12,7 @@ def _is_self_query(service: str) -> bool:
     return any(k in s for k in SELF_KEYWORDS)
 
 
-class ServiceMetricsTool(Tool):
+class ServiceMetricsTool(TenantScopedService, Tool):
     name = "service_metrics"
     description = (
         "查询指定服务的实时指标：CPU/Memory/QPS/ErrorRate/P95延迟/状态。"
@@ -21,6 +22,7 @@ class ServiceMetricsTool(Tool):
 
     def _call(self, service: str) -> ToolResult:
         if _is_self_query(service):
+            self.scoped_service_name(service, self_query=True)
             m = get_host_metrics()
             label = "异常" if m["status"] == "degraded" else "正常"
             summary = (
@@ -29,7 +31,8 @@ class ServiceMetricsTool(Tool):
             )
             return ToolResult(success=True, summary=summary, debug=m)
 
-        m = get_metrics(service)
+        canonical_service = self.scoped_service_name(service)
+        m = get_metrics(canonical_service)
         if m["status"] == "unknown":
             return ToolResult(success=False, summary="", error=f"未找到服务 '{service}' 的指标数据")
         label = "异常" if m["status"] == "degraded" else "正常"

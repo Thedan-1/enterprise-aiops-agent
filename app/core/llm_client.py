@@ -10,6 +10,7 @@
 """
 import json
 import re
+import time
 from abc import ABC, abstractmethod
 
 from app.agent.state import ObservationRecord, PlannerDecision
@@ -163,8 +164,16 @@ class PromptedLLMClient(LLMClient):
     def plan_next_action(
         self, query: str, intent: str, observations: list[ObservationRecord], available_tools: list[ToolSpec]
     ) -> PlannerDecision:
-        tools_desc = "\n".join(f"- {t.name}: {t.description}" for t in available_tools)
-        obs_desc = "\n".join(f"[{o.tool_name}] {o.result.summary}" for o in observations) or "(无)"
+        tools_desc = "\n".join(
+            f"- {t.name}: {t.description}; input_schema="
+            f"{json.dumps(t.input_schema, ensure_ascii=False, sort_keys=True)}"
+            for t in available_tools
+        )
+        obs_desc = "\n".join(
+            f"[{o.tool_name}] "
+            + (o.result.summary if o.result.success else f"调用失败: {o.result.error}")
+            for o in observations
+        ) or "(无)"
         prompt = (
             f"用户问题: {query}\n意图: {intent}\n可用工具:\n{tools_desc}\n\n已获得的观察:\n{obs_desc}\n\n"
             '严格输出JSON，不要多余文本: {"reasoning": "...", "tool_name": "xxx或null",'
@@ -246,20 +255,40 @@ class DeepSeekLLMClient(PromptedLLMClient):
         self.base_url = settings.deepseek_base_url
         self.api_key = settings.deepseek_api_key
         self.model = settings.deepseek_model
+        self.max_attempts = 3
+        self.backoff_base_s = 0.5
 
     def _call(self, system: str, user: str) -> str:
-        resp = self._httpx.post(
-            f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-            json={
-                "model": self.model,
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                "stream": False,
-            },
-            timeout=30.0,
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                resp = self._httpx.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": self.model,
+                        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                        "stream": False,
+                    },
+                    timeout=30.0,
+                )
+            except self._httpx.TimeoutException:
+                if attempt >= self.max_attempts:
+                    raise
+                time.sleep(self.backoff_base_s * (2 ** (attempt - 1)))
+                continue
+
+            transient = resp.status_code == 429 or resp.status_code >= 500
+            if not transient or attempt >= self.max_attempts:
+                resp.raise_for_status()
+                return resp.json()["choices"][0]["message"]["content"]
+
+            retry_after = resp.headers.get("Retry-After")
+            delay = float(retry_after) if retry_after and retry_after.replace(".", "", 1).isdigit() else (
+                self.backoff_base_s * (2 ** (attempt - 1))
+            )
+            time.sleep(min(delay, 5.0))
+
+        raise RuntimeError("LLM retry loop exited without response")
 
 
 def get_llm_client() -> LLMClient:

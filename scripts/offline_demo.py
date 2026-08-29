@@ -45,7 +45,7 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "eval" / "results"
 def load_and_chunk(chunk_size: int = 512, overlap: int = 50):
     chunks: list[Chunk] = []
     doc_titles: dict[str, str] = {}
-    for path in sorted(RAW_DIR.glob("*.md")):
+    for path in sorted(RAW_DIR.rglob("*.md")):
         raw = path.read_text(encoding="utf-8")
         title = raw.splitlines()[0].lstrip("# ").strip() if raw else path.stem
         doc_id = str(uuid.uuid4())
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     embedder = get_embedder()
     reranker = get_reranker()
     pipeline = build_pipeline(chunks, embedder, reranker)
-    n_docs = len(list(RAW_DIR.glob("*.md")))
+    n_docs = len(list(RAW_DIR.rglob("*.md")))
     print(f"\n已加载 {n_docs} 篇文档, 切分为 {len(chunks)} 个chunk (chunk_size=512, overlap=50)")
 
     print("\n=== 基线 Retrieval 评测 (30条评测集, Hybrid+Rerank) ===")

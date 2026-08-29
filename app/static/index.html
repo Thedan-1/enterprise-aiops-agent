@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>企业智能运维诊断 Agent</title>
+<title>OpsPilot · 企业智能运维诊断 Agent</title>
 <style>
   :root {
     --bg: #08090d;
@@ -130,6 +130,7 @@
   }
   .badge { font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 700; letter-spacing: 0.01em; }
   .badge.answered { background: var(--green-dim); color: var(--green); }
+  .badge.partial { background: var(--amber-dim); color: var(--amber); }
   .badge.abstained { background: var(--amber-dim); color: var(--amber); }
   .badge.error { background: var(--red-dim); color: var(--red); }
   .meta { font-size: 11px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
@@ -230,13 +231,31 @@
   @media (max-width: 760px) {
     #sidebar { display: none; }
   }
+  #login-overlay { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; background:rgba(5,6,9,.92); backdrop-filter:blur(12px); }
+  .login-card { width:min(410px,calc(100vw - 32px)); padding:30px; border:1px solid var(--border); border-radius:18px; background:var(--panel); box-shadow:0 30px 80px rgba(0,0,0,.5); }
+  .login-card h2 { margin:0 0 8px; font-size:20px; }
+  .login-card p { color:var(--muted); font-size:13px; line-height:1.6; }
+  .login-card input { width:100%; box-sizing:border-box; margin:7px 0; padding:12px; color:var(--text); background:var(--panel-2); border:1px solid var(--border); border-radius:8px; }
+  .login-card button { width:100%; margin-top:12px; padding:12px; border:0; border-radius:8px; color:white; background:var(--accent); cursor:pointer; }
+  .login-error { min-height:20px; margin-top:8px; color:var(--red); font-size:12px; }
+  #identity { color:var(--muted); font-size:12px; margin-right:12px; }
 </style>
 </head>
 <body>
+<div id="login-overlay">
+  <div class="login-card">
+    <h2>登录 OpsPilot</h2>
+    <p>V2 演示环境启用了角色权限、租户隔离、限流和审计。默认使用 Alpha 运维员账号。</p>
+    <input id="login-user" value="operator@alpha" autocomplete="username" />
+    <input id="login-password" type="password" value="AlphaDemo!2026" autocomplete="current-password" />
+    <button id="login-btn">登录</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
 <div id="app">
   <aside id="sidebar">
     <div class="brand">
-      <div class="brand-title"><span class="brand-dot"></span>企业智能运维诊断 Agent</div>
+      <div class="brand-title"><span class="brand-dot"></span>OpsPilot</div>
       <div class="brand-sub">Enterprise AIOps Diagnosis Agent</div>
     </div>
 
@@ -286,6 +305,7 @@
   <div id="main">
     <div id="topbar">
       <div class="title">对话</div>
+      <div id="identity"></div>
       <div id="status-pill"><span class="dot"></span>连接中...</div>
     </div>
 
@@ -328,6 +348,7 @@ const sendBtn = document.getElementById('send-btn');
 const statusPill = document.getElementById('status-pill');
 const emptyState = document.getElementById('empty-state');
 const pipelineEl = document.getElementById('pipeline');
+let accessToken = sessionStorage.getItem('aiops_token') || '';
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -373,6 +394,27 @@ async function checkHealth() {
   }
 }
 checkHealth();
+
+async function restoreSession() {
+  if (!accessToken) return;
+  const res = await fetch('/api/me', {headers:{Authorization:`Bearer ${accessToken}`}});
+  if (!res.ok) { accessToken=''; sessionStorage.removeItem('aiops_token'); return; }
+  const user = await res.json();
+  document.getElementById('identity').textContent = `${user.tenant_id} / ${user.role}`;
+  document.getElementById('login-overlay').style.display='none';
+}
+
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const error = document.getElementById('login-error'); error.textContent='';
+  const body = {username:document.getElementById('login-user').value,password:document.getElementById('login-password').value};
+  const res = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data = await res.json();
+  if (!res.ok) { error.textContent=data.detail || '登录失败'; return; }
+  accessToken=data.access_token; sessionStorage.setItem('aiops_token',accessToken);
+  document.getElementById('identity').textContent=`${data.user.tenant_id} / ${data.user.role}`;
+  document.getElementById('login-overlay').style.display='none';
+});
+restoreSession();
 
 function addUserMessage(query) {
   if (emptyState.parentNode) emptyState.remove();
@@ -422,6 +464,7 @@ function clearPipelineTimers() {
 
 function statusLabel(status) {
   if (status === 'answered') return { text: '已回答', cls: 'answered', color: 'var(--green)' };
+  if (status === 'partial') return { text: '部分证据 · 需继续排查', cls: 'partial', color: 'var(--amber)' };
   if (status === 'abstained') return { text: '证据不足 · 已拒答', cls: 'abstained', color: 'var(--amber)' };
   return { text: status, cls: 'error', color: 'var(--red)' };
 }
@@ -521,11 +564,11 @@ async function sendQuery(query) {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
       body: JSON.stringify({ query }),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     addAgentMessage(data);
   } catch (e) {
     addErrorMessage(e.message);

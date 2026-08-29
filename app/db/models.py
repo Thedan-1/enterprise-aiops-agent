@@ -21,11 +21,30 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class Tenant(Base):
+    __tablename__ = "tenants"
+    id: Mapped[uuid.UUID] = _uuid_col()
+    slug: Mapped[str] = mapped_column(String, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[uuid.UUID] = _uuid_col()
+    external_subject: Mapped[str] = mapped_column(String, unique=True, index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), index=True)
+    role: Mapped[str] = mapped_column(String)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class KnowledgeSource(Base):
     __tablename__ = "knowledge_sources"
     id: Mapped[uuid.UUID] = _uuid_col()
     name: Mapped[str] = mapped_column(String)
     source_type: Mapped[str] = mapped_column(String)
+    tenant_slug: Mapped[str] = mapped_column(String, default="alpha", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -34,6 +53,7 @@ class Document(Base):
     id: Mapped[uuid.UUID] = _uuid_col()
     source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id"), nullable=True)
     title: Mapped[str] = mapped_column(String)
+    tenant_slug: Mapped[str] = mapped_column(String, default="alpha", index=True)
     raw_content: Mapped[str] = mapped_column(Text)
     doc_metadata: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     version: Mapped[int] = mapped_column(Integer, default=1)
@@ -46,6 +66,7 @@ class DocumentChunk(Base):
     document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id"))
     chunk_index: Mapped[int] = mapped_column(Integer)
     content: Mapped[str] = mapped_column(Text)
+    tenant_slug: Mapped[str] = mapped_column(String, default="alpha", index=True)
     embedding = mapped_column(Vector(settings.embedder_dim), nullable=True)
     chunk_metadata: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     embedding_version: Mapped[int] = mapped_column(Integer, default=1)
@@ -56,6 +77,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[uuid.UUID] = _uuid_col()
     user_id: Mapped[str] = mapped_column(String, default="anonymous")
+    tenant_slug: Mapped[str] = mapped_column(String, default="alpha", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -73,6 +95,8 @@ class AgentRun(Base):
     id: Mapped[uuid.UUID] = _uuid_col()
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=True)
     request_id: Mapped[str] = mapped_column(String, unique=True)
+    user_id: Mapped[str] = mapped_column(String, default="anonymous", index=True)
+    tenant_slug: Mapped[str] = mapped_column(String, default="alpha", index=True)
     query: Mapped[str] = mapped_column(Text)
     intent: Mapped[str] = mapped_column(String, default="unknown")
     final_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -90,6 +114,7 @@ class ToolCall(Base):
     agent_run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_runs.id"))
     iteration: Mapped[int] = mapped_column(Integer)
     tool_name: Mapped[str] = mapped_column(String)
+    tenant_slug: Mapped[str] = mapped_column(String, default="alpha", index=True)
     input: Mapped[dict] = mapped_column(JSON, default=dict)
     output: Mapped[dict] = mapped_column(JSON, default=dict)
     latency_ms: Mapped[float] = mapped_column(Float, default=0.0)
@@ -103,6 +128,7 @@ class RetrievalLog(Base):
     agent_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_runs.id"), nullable=True)
     tool_call_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tool_calls.id"), nullable=True)
     query: Mapped[str] = mapped_column(Text)
+    tenant_slug: Mapped[str] = mapped_column(String, default="alpha", index=True)
     rewritten_query: Mapped[str | None] = mapped_column(Text, nullable=True)
     bm25_candidates: Mapped[list] = mapped_column(JSON, default=list)
     dense_candidates: Mapped[list] = mapped_column(JSON, default=list)
@@ -138,3 +164,15 @@ class EvaluationResult(Base):
     task_success: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id: Mapped[uuid.UUID] = _uuid_col()
+    tenant_slug: Mapped[str] = mapped_column(String, index=True)
+    user_id: Mapped[str] = mapped_column(String, index=True)
+    action: Mapped[str] = mapped_column(String, index=True)
+    outcome: Mapped[str] = mapped_column(String)
+    request_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    detail: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)

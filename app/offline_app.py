@@ -15,7 +15,7 @@ Demo 模式和生产模式（app/main.py）的唯一功能性差异，Agent 本�
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -24,44 +24,100 @@ from app.agent.tools.kb_search import KnowledgeSearchTool
 from app.agent.tools.log_query import LogQueryTool
 from app.agent.tools.service_metrics import ServiceMetricsTool
 from app.agent.tools.ticket_search import TicketSearchTool
+from app.auth.service import AuthContext, AuthError, AuthService
 from app.core.config import settings
 from app.core.embedder import get_embedder
 from app.core.llm_client import get_llm_client
 from app.core.logging import setup_logging
 from app.rag.reranker import get_reranker
+from app.security.audit import AuditEvent, AuditStore
+from app.security.guard import inspect_query
+from app.security.policy import allowed_tools, can_read_audit
+from app.security.rate_limit import SlidingWindowRateLimiter
 from scripts.offline_demo import build_pipeline, load_and_chunk
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "offline_app.log"
+AUDIT_FILE = Path(__file__).resolve().parent.parent / "logs" / "audit.jsonl"
+
+
+def scope_chunks_for_tenant(chunks, tenant_id: str):
+    """Return a separate corpus per tenant; never ask the LLM to filter tenant data."""
+    if tenant_id == "alpha":
+        return list(chunks)
+    if tenant_id == "beta":
+        beta_slugs = {"redis_common_issues", "http_status_codes_reference", "nginx_502_gateway_troubleshooting"}
+        return [c for c in chunks if c.metadata.get("slug") in beta_slugs]
+    return []
+
+
+def service_scope_for_tenant(tenant_id: str) -> set[str]:
+    scopes = {
+        "alpha": {"order-service", "payment-service", "user-service", "__self__"},
+        "beta": {"inventory-service"},
+    }
+    return set(scopes.get(tenant_id, set()))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging(log_file=LOG_FILE)
     chunks, doc_titles = load_and_chunk(chunk_size=512, overlap=50)
-    pipeline = build_pipeline(chunks, get_embedder(), get_reranker())
-    tools = [
-        KnowledgeSearchTool(pipeline, doc_titles),
-        LogQueryTool(),
-        ServiceMetricsTool(),
-        TicketSearchTool(),
-    ]
-    app.state.agent_runtime = AgentRuntime(
-        llm_client=get_llm_client(),
-        tools=tools,
-        max_iterations=settings.agent_max_iterations,
-        timeout_s=settings.agent_timeout_s,
-    )
+    embedder = get_embedder()
+    reranker = get_reranker()
+
+    def runtime_for(tenant: str, tenant_chunks):
+        pipeline = build_pipeline(tenant_chunks, embedder, reranker)
+        service_scope = service_scope_for_tenant(tenant)
+        tools = [
+            KnowledgeSearchTool(pipeline, doc_titles),
+            LogQueryTool(allowed_services=service_scope),
+            ServiceMetricsTool(allowed_services=service_scope),
+            TicketSearchTool(allowed_services=service_scope),
+        ]
+        return AgentRuntime(get_llm_client(), tools, settings.agent_max_iterations, settings.agent_timeout_s)
+
+    app.state.agent_runtimes = {
+        tenant: runtime_for(tenant, scope_chunks_for_tenant(chunks, tenant)) for tenant in ("alpha", "beta")
+    }
+    app.state.auth = AuthService()
+    app.state.rate_limiter = SlidingWindowRateLimiter(limit=10, window_s=60)
+    app.state.audit = AuditStore(AUDIT_FILE)
     app.state.n_chunks = len(chunks)
     app.state.n_docs = len({c.document_id for c in chunks})
     yield
 
 
-app = FastAPI(title="AIOps Agent (Offline Demo Mode)", lifespan=lifespan)
+app = FastAPI(title="OpsPilot (Offline Demo Mode)", lifespan=lifespan)
 
 
 class ChatRequest(BaseModel):
     query: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def current_user(request: Request, authorization: str | None = Header(default=None)) -> AuthContext:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="请先登录")
+    try:
+        return request.app.state.auth.verify(authorization.removeprefix("Bearer ").strip())
+    except AuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.post("/api/login")
+def login(body: LoginRequest, request: Request):
+    try:
+        token = request.app.state.auth.login(body.username, body.password)
+        context = request.app.state.auth.verify(token)
+        request.app.state.audit.append(AuditEvent("login", "success", context.user_id, context.tenant_id))
+        return {"access_token": token, "token_type": "bearer", "user": context.__dict__}
+    except AuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -84,10 +140,33 @@ def health(request: Request):
     }
 
 
+@app.get("/api/me")
+def me(user: AuthContext = Depends(current_user)):
+    return user.__dict__
+
+
+@app.get("/api/audit")
+def audit(request: Request, user: AuthContext = Depends(current_user)):
+    if not can_read_audit(user):
+        raise HTTPException(status_code=403, detail="仅审计员可查看审计记录")
+    return {"events": request.app.state.audit.list_for_tenant(user.tenant_id)}
+
+
 @app.post("/api/chat")
-def chat(body: ChatRequest, request: Request):
-    runtime: AgentRuntime = request.app.state.agent_runtime
-    result = runtime.run(body.query)
+def chat(body: ChatRequest, request: Request, user: AuthContext = Depends(current_user)):
+    guard = inspect_query(body.query)
+    if not guard.allowed:
+        request.app.state.audit.append(AuditEvent("chat", "blocked", user.user_id, user.tenant_id, detail=guard.reason))
+        raise HTTPException(status_code=400, detail=guard.reason)
+    if not request.app.state.rate_limiter.allow(f"{user.tenant_id}:{user.user_id}"):
+        request.app.state.audit.append(AuditEvent("chat", "rate_limited", user.user_id, user.tenant_id))
+        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后重试")
+
+    runtime: AgentRuntime = request.app.state.agent_runtimes[user.tenant_id]
+    result = runtime.run(body.query, allowed_tool_names=allowed_tools(user))
+    request.app.state.audit.append(
+        AuditEvent("chat", result.status, user.user_id, user.tenant_id, result.request_id, result.stop_reason)
+    )
     return {
         "request_id": result.request_id,
         "query": result.query,
