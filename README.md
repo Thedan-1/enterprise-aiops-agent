@@ -1,20 +1,23 @@
 # 企业智能运维诊断 Agent（Enterprise Intelligent AIOps Diagnosis Agent）
 
-面试导向的 RAG + Agent 项目。完整架构设计见 [`docs/architecture.md`](docs/architecture.md)，
+可运行、可评测、可审计的面试型 RAG + Agent 工程样板。它不是生产 AIOps 平台，但关键边界都有代码和测试。完整架构设计见 [`docs/architecture.md`](docs/architecture.md)，
 开发进度和故障排查手册见 [`docs/project_management.md`](docs/project_management.md)，
 真实实验数据见 [`docs/experiment_results.md`](docs/experiment_results.md)，
 **面试讲稿大纲 + 100题问题库见 [`docs/interview_prep.md`](docs/interview_prep.md)**。
+
+V2 Roadmap 和验收结果分别见 [`roadmap/V2_ROADMAP.md`](roadmap/V2_ROADMAP.md) 与 [`docs/v2_results.md`](docs/v2_results.md)。
 
 ## 当前状态（真实联调后的状态，未夸大）
 
 - **三个核心组件（Embedder / Reranker / LLM）现在全部是真实模型/真实API，不再有任何占位实现**——见下方"Provider 状态"
 - RAG Pipeline（Chunking → BM25 + Dense → RRF Fusion → Reranker → Evidence）：已实现，**用占位实现和真实模型各跑了一整套对比实验**（Chunk Size / Dense-BM25-Hybrid / Reranker有无），见 [`docs/experiment_results.md`](docs/experiment_results.md)——换真实模型后发现了一个反直觉的重要结果：真实 Cross-Encoder Reranker 在当前小规模评测集上反而拉低了 Recall/Precision/MRR，如实记录分析，没有回避
 - Agent Loop（Intent → Planner → Tool Loop(结构化Stop Condition) → Answer → Evidence Validation）：已实现，**真实DeepSeek LLM跑通**，联调中发现并修复了两个真实缺陷（Planner跳过知识库检索、Validator误判不相关证据为有效证据），见 ADR-006/ADR-007
-- **4个 Tool**：knowledge_search（真实Pipeline）、log_query / service_metrics / ticket_search（mock数据，接口可替换真实系统）
-- 9篇原创mock企业文档、30条结构化评测集（10关键词/10语义/5多证据/5知识库外）
-- 单元测试 33 个 + 集成测试 4 个，全部通过；集成测试刻意用 Mock 组件（不依赖 `.env` 配置），保证测试套件快、确定性、不受环境影响
+- **4个只读 Tool**：knowledge_search、log_query、service_metrics、ticket_search；企业场景使用可复现模拟数据，本机指标和 Agent 自身日志可读取真实数据
+- **25篇原创企业文档、100条结构化评测集**；真实模型 V2 基线 Recall@5=0.9363、MRR=0.8830，多证据 Recall=0.6667 是当前弱项
+- V2 加入登录、RBAC、alpha/beta 租户隔离、Prompt Injection Guard、输入限制、用户级限流和审计记录
+- 58 个测试全部通过；GitHub Actions 会执行数据质量门禁与完整测试
 - **Postgres+pgvector 生产路径代码已实现但本机环境暂未跑通**：宿主机 Docker Desktop 因未开启
-  Windows "Virtual Machine Platform" 功能无法启动 WSL2，这需要管理员权限+重启修复（用户自行处理中）。已改用
+  Windows "Virtual Machine Platform" 功能无法启动 WSL2，这需要管理员权限+重启修复。已改用
   `InMemoryDenseRetriever`（依赖注入，替换Dense检索的唯一实现）跑通全部实验，详见 `docs/experiment_results.md`
 
 ## Provider 状态（当前 `.env` 实际配置）
@@ -36,7 +39,8 @@
 ```bash
 python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
 .venv\Scripts\python scripts/offline_demo.py   # Retrieval评测+5组实验+4工具Agent Demo，真实输出见 docs/experiment_results.md
-.venv\Scripts\python -m pytest tests/ -v       # 33个单元测试 + 4个集成测试
+.venv\Scripts\python eval/validate_dataset.py # 检查100条评测数据质量
+.venv\Scripts\python -m pytest tests/ -v       # 单元、集成与安全测试
 ```
 
 ### 方式B：完整生产路径（需要 Docker 能正常启动 Postgres+pgvector）
@@ -56,8 +60,7 @@ uvicorn app.main:app --reload          # 启动API, POST /api/chat {"query": "..
 uvicorn app.offline_app:app --host 127.0.0.1 --port 8001
 ```
 
-打开 `http://127.0.0.1:8001`。复用方式A的内存版Pipeline，不做数据库持久化（这是它和
-`app/main.py`唯一的功能性差异，Agent行为完全一致）。界面左侧是架构Pipeline示意图和
+打开 `http://127.0.0.1:8001`，使用页面预填的 Alpha 运维员演示账号登录。复用方式A的内存版 Pipeline，并额外提供本地签名认证、角色工具权限、租户隔离、限流和 JSONL 审计。界面左侧是架构 Pipeline 示意图和
 系统状态，右侧对话区域能看到每次问答的置信度、状态（已回答/已拒答）、完整的工具调用
 轨迹（含每条证据的rerank分数）。首次问答用的是真实DeepSeek，单次耗时15~40秒。
 

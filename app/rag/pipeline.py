@@ -5,6 +5,9 @@
 "RAG和Agent分别能独立讲清楚"的边界要求。
 """
 import time
+import threading
+from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from typing import Protocol
 
@@ -31,6 +34,7 @@ class RetrievalDebugInfo:
     fusion_candidates: list[dict] = field(default_factory=list)
     rerank_candidates: list[dict] = field(default_factory=list)
     latency_breakdown: dict[str, float] = field(default_factory=dict)
+    cache_hit: bool = False
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -53,15 +57,32 @@ class RetrievalPipeline:
     只在最外层(runtime_factory.py / scripts/offline_demo.py)决定注入哪一个。
     """
 
-    def __init__(self, dense_retriever: DenseSearcher, sparse_retriever: SparseSearcher, reranker: Reranker):
+    def __init__(
+        self,
+        dense_retriever: DenseSearcher,
+        sparse_retriever: SparseSearcher,
+        reranker: Reranker,
+        cache_size: int = 128,
+        cache_ttl_s: float = 300.0,
+    ):
         self.dense = dense_retriever
         self.sparse = sparse_retriever
         self.reranker = reranker
+        self.cache_size = cache_size
+        self.cache_ttl_s = cache_ttl_s
+        self._cache: OrderedDict[tuple, tuple[float, RetrievalOutput]] = OrderedDict()
+        self._cache_lock = threading.Lock()
 
     def retrieve(
         self, query: str, top_k_candidate: int = 30, top_k_final: int = 5, doc_titles: dict[str, str] | None = None
     ) -> RetrievalOutput:
         doc_titles = doc_titles or {}
+        cache_key = (query.strip(), top_k_candidate, top_k_final)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            cached.debug.cache_hit = True
+            cached.debug.latency_breakdown["cache_lookup_ms"] = 0.0
+            return cached
         latency: dict[str, float] = {}
 
         t0 = time.perf_counter()
@@ -91,4 +112,28 @@ class RetrievalPipeline:
             rerank_candidates=_to_dict_list(reranked),
             latency_breakdown=latency,
         )
-        return RetrievalOutput(evidence=evidence, debug=debug)
+        output = RetrievalOutput(evidence=evidence, debug=debug)
+        self._cache_put(cache_key, output)
+        return output
+
+    def _cache_get(self, key: tuple) -> RetrievalOutput | None:
+        now = time.monotonic()
+        with self._cache_lock:
+            item = self._cache.get(key)
+            if item is None:
+                return None
+            created_at, output = item
+            if now - created_at > self.cache_ttl_s:
+                del self._cache[key]
+                return None
+            self._cache.move_to_end(key)
+            return deepcopy(output)
+
+    def _cache_put(self, key: tuple, output: RetrievalOutput) -> None:
+        if self.cache_size <= 0:
+            return
+        with self._cache_lock:
+            self._cache[key] = (time.monotonic(), deepcopy(output))
+            self._cache.move_to_end(key)
+            while len(self._cache) > self.cache_size:
+                self._cache.popitem(last=False)

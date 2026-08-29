@@ -63,3 +63,21 @@ def test_unknown_tool_name_none_treated_as_sufficient():
     decision = PlannerDecision(reasoning="", tool_name=None, tool_input=None, sufficient=False)
     stop, reason = state.should_stop(decision)
     assert stop is True
+
+
+def test_runtime_rejects_tool_outside_role_policy():
+    from app.agent.loop import AgentRuntime
+    from app.agent.state import PlannerDecision
+    from app.core.llm_client import LLMClient
+
+    class WantsLogs(LLMClient):
+        def classify_intent(self, query): return "diagnosis"
+        def plan_next_action(self, query, intent, observations, available_tools):
+            return PlannerDecision("try escalation", "log_query", {"service": "order-service"}, False)
+        def generate_answer(self, query, observations): return "权限不足，未调用日志工具"
+        def is_evidence_relevant(self, query, evidence): return False
+
+    runtime = AgentRuntime(WantsLogs(), [], max_iterations=2)
+    result = runtime.run("查日志", allowed_tool_names={"knowledge_search"})
+    assert result.stop_reason == "forbidden_tool:log_query"
+    assert result.observations == []

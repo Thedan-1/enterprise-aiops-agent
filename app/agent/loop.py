@@ -42,7 +42,12 @@ class AgentRuntime:
         self.max_iterations = max_iterations
         self.timeout_s = timeout_s
 
-    def run(self, query: str, request_id: str | None = None) -> AgentRunResult:
+    def run(
+        self,
+        query: str,
+        request_id: str | None = None,
+        allowed_tool_names: set[str] | None = None,
+    ) -> AgentRunResult:
         request_id = request_id or str(uuid.uuid4())
         state = AgentState(
             request_id=request_id, query=query, max_iterations=self.max_iterations, timeout_s=self.timeout_s
@@ -50,13 +55,18 @@ class AgentRuntime:
         state.intent = self.llm_client.classify_intent(query)
         logger.info("intent classified", extra={"request_id": request_id, "stage": "intent"})
 
-        tool_specs = [t.spec() for t in self.tools_by_name.values()]
+        allowed = allowed_tool_names if allowed_tool_names is not None else set(self.tools_by_name)
+        tool_specs = [t.spec() for name, t in self.tools_by_name.items() if name in allowed]
 
         while True:
             decision = self.llm_client.plan_next_action(query, state.intent, state.observations, tool_specs)
             stop, reason = state.should_stop(decision)
             if stop:
                 state.stop_reason = reason
+                break
+
+            if decision.tool_name not in allowed:
+                state.stop_reason = f"forbidden_tool:{decision.tool_name}"
                 break
 
             tool = self.tools_by_name.get(decision.tool_name)

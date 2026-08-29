@@ -1,32 +1,1173 @@
 [
-  {"id": "eval_001", "question": "订单服务出现大量502 Bad Gateway，可能是什么原因", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["nginx_502_gateway_troubleshooting", "postmortem_order_service_502_incident"], "expected_answer_contains": ["upstream", "连接池"]},
-  {"id": "eval_002", "question": "Nginx日志里出现upstream prematurely closed connection是什么意思", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["nginx_502_gateway_troubleshooting"], "expected_answer_contains": ["502"]},
-  {"id": "eval_003", "question": "504 Gateway Timeout是什么原因导致的", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["nginx_502_gateway_troubleshooting", "http_status_codes_reference"], "expected_answer_contains": ["超时"]},
-  {"id": "eval_004", "question": "应用报错connection pool exhausted, waited 5000ms怎么排查", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["database_connection_pool"], "expected_answer_contains": ["连接池"]},
-  {"id": "eval_005", "question": "什么是缓存穿透", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["redis_common_issues"], "expected_answer_contains": ["布隆过滤器"]},
-  {"id": "eval_006", "question": "什么是缓存雪崩", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["redis_common_issues"], "expected_answer_contains": ["过期"]},
-  {"id": "eval_007", "question": "HTTP 503和502有什么区别", "category": "keyword", "difficulty": "medium", "ground_truth_doc_slugs": ["http_status_codes_reference"], "expected_answer_contains": ["网关"]},
-  {"id": "eval_008", "question": "ECONNRESET是什么错误", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["http_status_codes_reference"], "expected_answer_contains": ["重置"]},
-  {"id": "eval_009", "question": "GC暂停时间过长会导致什么问题", "category": "keyword", "difficulty": "medium", "ground_truth_doc_slugs": ["inventory_service_memory_incident"], "expected_answer_contains": ["延迟"]},
-  {"id": "eval_010", "question": "payment-service的SLA是多少", "category": "keyword", "difficulty": "easy", "ground_truth_doc_slugs": ["payment_service_api"], "expected_answer_contains": ["300ms"]},
-  {"id": "eval_011", "question": "下单接口最近经常卡住，用户反馈提交订单半天没反应", "category": "semantic", "difficulty": "medium", "ground_truth_doc_slugs": ["order_service_api", "postmortem_order_service_502_incident"], "expected_answer_contains": []},
-  {"id": "eval_012", "question": "为什么数据库看起来很空闲，但应用这边请求全部堆积超时了", "category": "semantic", "difficulty": "hard", "ground_truth_doc_slugs": ["database_connection_pool"], "expected_answer_contains": []},
-  {"id": "eval_013", "question": "促销活动期间某个服务越跑越慢，内存占用一直涨", "category": "semantic", "difficulty": "medium", "ground_truth_doc_slugs": ["inventory_service_memory_incident"], "expected_answer_contains": []},
-  {"id": "eval_014", "question": "第三方支付渠道抖动会不会影响到我们自己订单系统的稳定性", "category": "semantic", "difficulty": "hard", "ground_truth_doc_slugs": ["postmortem_order_service_502_incident", "payment_service_api"], "expected_answer_contains": []},
-  {"id": "eval_015", "question": "一个服务挂了会不会连带影响到调用它的其他服务", "category": "semantic", "difficulty": "medium", "ground_truth_doc_slugs": ["microservice_incident_sop", "postmortem_order_service_502_incident"], "expected_answer_contains": []},
-  {"id": "eval_016", "question": "线上偶尔有接口超时，但是重启一下又好了，这是为什么", "category": "semantic", "difficulty": "hard", "ground_truth_doc_slugs": ["microservice_incident_sop", "database_connection_pool"], "expected_answer_contains": []},
-  {"id": "eval_017", "question": "怎么避免热点缓存key失效瞬间把数据库打挂", "category": "semantic", "difficulty": "medium", "ground_truth_doc_slugs": ["redis_common_issues"], "expected_answer_contains": []},
-  {"id": "eval_018", "question": "服务连接redis报错说拿不到连接是什么情况", "category": "semantic", "difficulty": "medium", "ground_truth_doc_slugs": ["redis_common_issues"], "expected_answer_contains": []},
-  {"id": "eval_019", "question": "订单创建接口依赖哪些其他服务", "category": "semantic", "difficulty": "easy", "ground_truth_doc_slugs": ["order_service_api"], "expected_answer_contains": []},
-  {"id": "eval_020", "question": "遇到生产环境故障，第一步应该做什么", "category": "semantic", "difficulty": "easy", "ground_truth_doc_slugs": ["microservice_incident_sop"], "expected_answer_contains": []},
-  {"id": "eval_021", "question": "订单服务502的根因链路是怎样的，涉及到哪些服务", "category": "multi_evidence", "difficulty": "hard", "ground_truth_doc_slugs": ["postmortem_order_service_502_incident", "order_service_api", "payment_service_api"], "expected_answer_contains": []},
-  {"id": "eval_022", "question": "从网关报错到具体定位到是哪个服务的问题，完整排查顺序是什么", "category": "multi_evidence", "difficulty": "hard", "ground_truth_doc_slugs": ["nginx_502_gateway_troubleshooting", "microservice_incident_sop"], "expected_answer_contains": []},
-  {"id": "eval_023", "question": "order-service和payment-service之间调用如果超时配置不合理会有什么风险", "category": "multi_evidence", "difficulty": "hard", "ground_truth_doc_slugs": ["order_service_api", "payment_service_api"], "expected_answer_contains": []},
-  {"id": "eval_024", "question": "内存问题和连接池耗尽问题在排查思路上有什么共同点和区别", "category": "multi_evidence", "difficulty": "hard", "ground_truth_doc_slugs": ["inventory_service_memory_incident", "database_connection_pool"], "expected_answer_contains": []},
-  {"id": "eval_025", "question": "502故障里，如何区分是网关本身的问题还是后端应用的问题", "category": "multi_evidence", "difficulty": "medium", "ground_truth_doc_slugs": ["nginx_502_gateway_troubleshooting", "http_status_codes_reference"], "expected_answer_contains": []},
-  {"id": "eval_026", "question": "Kubernetes里怎么配置HPA自动扩缩容", "category": "not_in_kb", "difficulty": "medium", "ground_truth_doc_slugs": [], "expected_answer_contains": ["不足", "不知道", "无法"]},
-  {"id": "eval_027", "question": "公司的年假申请流程是什么", "category": "not_in_kb", "difficulty": "easy", "ground_truth_doc_slugs": [], "expected_answer_contains": ["不足", "不知道", "无法"]},
-  {"id": "eval_028", "question": "MySQL主从复制延迟太高怎么优化", "category": "not_in_kb", "difficulty": "medium", "ground_truth_doc_slugs": [], "expected_answer_contains": ["不足", "不知道", "无法"]},
-  {"id": "eval_029", "question": "iOS客户端崩溃日志怎么分析定位", "category": "not_in_kb", "difficulty": "medium", "ground_truth_doc_slugs": [], "expected_answer_contains": ["不足", "不知道", "无法"]},
-  {"id": "eval_030", "question": "怎么重置员工的VPN账号密码", "category": "not_in_kb", "difficulty": "easy", "ground_truth_doc_slugs": [], "expected_answer_contains": ["不足", "不知道", "无法"]}
+  {
+    "id": "eval_001",
+    "question": "订单服务出现大量502 Bad Gateway，可能是什么原因",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "nginx_502_gateway_troubleshooting",
+      "postmortem_order_service_502_incident"
+    ],
+    "expected_answer_contains": [
+      "upstream",
+      "连接池"
+    ]
+  },
+  {
+    "id": "eval_002",
+    "question": "Nginx日志里出现upstream prematurely closed connection是什么意思",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "nginx_502_gateway_troubleshooting"
+    ],
+    "expected_answer_contains": [
+      "502"
+    ]
+  },
+  {
+    "id": "eval_003",
+    "question": "504 Gateway Timeout是什么原因导致的",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "nginx_502_gateway_troubleshooting",
+      "http_status_codes_reference"
+    ],
+    "expected_answer_contains": [
+      "超时"
+    ]
+  },
+  {
+    "id": "eval_004",
+    "question": "应用报错connection pool exhausted, waited 5000ms怎么排查",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "database_connection_pool"
+    ],
+    "expected_answer_contains": [
+      "连接池"
+    ]
+  },
+  {
+    "id": "eval_005",
+    "question": "什么是缓存穿透",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "redis_common_issues"
+    ],
+    "expected_answer_contains": [
+      "布隆过滤器"
+    ]
+  },
+  {
+    "id": "eval_006",
+    "question": "什么是缓存雪崩",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "redis_common_issues"
+    ],
+    "expected_answer_contains": [
+      "过期"
+    ]
+  },
+  {
+    "id": "eval_007",
+    "question": "HTTP 503和502有什么区别",
+    "category": "keyword",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "http_status_codes_reference"
+    ],
+    "expected_answer_contains": [
+      "网关"
+    ]
+  },
+  {
+    "id": "eval_008",
+    "question": "ECONNRESET是什么错误",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "http_status_codes_reference"
+    ],
+    "expected_answer_contains": [
+      "重置"
+    ]
+  },
+  {
+    "id": "eval_009",
+    "question": "GC暂停时间过长会导致什么问题",
+    "category": "keyword",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "inventory_service_memory_incident"
+    ],
+    "expected_answer_contains": [
+      "延迟"
+    ]
+  },
+  {
+    "id": "eval_010",
+    "question": "payment-service的SLA是多少",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "payment_service_api"
+    ],
+    "expected_answer_contains": [
+      "300ms"
+    ]
+  },
+  {
+    "id": "eval_011",
+    "question": "下单接口最近经常卡住，用户反馈提交订单半天没反应",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "order_service_api",
+      "postmortem_order_service_502_incident"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_012",
+    "question": "为什么数据库看起来很空闲，但应用这边请求全部堆积超时了",
+    "category": "semantic",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [
+      "database_connection_pool"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_013",
+    "question": "促销活动期间某个服务越跑越慢，内存占用一直涨",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "inventory_service_memory_incident"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_014",
+    "question": "第三方支付渠道抖动会不会影响到我们自己订单系统的稳定性",
+    "category": "semantic",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [
+      "postmortem_order_service_502_incident",
+      "payment_service_api"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_015",
+    "question": "一个服务挂了会不会连带影响到调用它的其他服务",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "microservice_incident_sop",
+      "postmortem_order_service_502_incident"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_016",
+    "question": "线上偶尔有接口超时，但是重启一下又好了，这是为什么",
+    "category": "semantic",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [
+      "microservice_incident_sop",
+      "database_connection_pool"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_017",
+    "question": "怎么避免热点缓存key失效瞬间把数据库打挂",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_common_issues"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_018",
+    "question": "服务连接redis报错说拿不到连接是什么情况",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_common_issues"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_019",
+    "question": "订单创建接口依赖哪些其他服务",
+    "category": "semantic",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "order_service_api"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_020",
+    "question": "遇到生产环境故障，第一步应该做什么",
+    "category": "semantic",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "microservice_incident_sop"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_021",
+    "question": "订单服务502的根因链路是怎样的，涉及到哪些服务",
+    "category": "multi_evidence",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [
+      "postmortem_order_service_502_incident",
+      "order_service_api",
+      "payment_service_api"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_022",
+    "question": "从网关报错到具体定位到是哪个服务的问题，完整排查顺序是什么",
+    "category": "multi_evidence",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [
+      "nginx_502_gateway_troubleshooting",
+      "microservice_incident_sop"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_023",
+    "question": "order-service和payment-service之间调用如果超时配置不合理会有什么风险",
+    "category": "multi_evidence",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [
+      "order_service_api",
+      "payment_service_api"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_024",
+    "question": "内存问题和连接池耗尽问题在排查思路上有什么共同点和区别",
+    "category": "multi_evidence",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [
+      "inventory_service_memory_incident",
+      "database_connection_pool"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_025",
+    "question": "502故障里，如何区分是网关本身的问题还是后端应用的问题",
+    "category": "multi_evidence",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "nginx_502_gateway_troubleshooting",
+      "http_status_codes_reference"
+    ],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "eval_026",
+    "question": "Kubernetes里怎么配置HPA自动扩缩容",
+    "category": "not_in_kb",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "不足",
+      "不知道",
+      "无法"
+    ]
+  },
+  {
+    "id": "eval_027",
+    "question": "公司的年假申请流程是什么",
+    "category": "not_in_kb",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "不足",
+      "不知道",
+      "无法"
+    ]
+  },
+  {
+    "id": "eval_028",
+    "question": "MySQL主从复制延迟太高怎么优化",
+    "category": "not_in_kb",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "不足",
+      "不知道",
+      "无法"
+    ]
+  },
+  {
+    "id": "eval_029",
+    "question": "iOS客户端崩溃日志怎么分析定位",
+    "category": "not_in_kb",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "不足",
+      "不知道",
+      "无法"
+    ]
+  },
+  {
+    "id": "eval_030",
+    "question": "怎么重置员工的VPN账号密码",
+    "category": "not_in_kb",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "不足",
+      "不知道",
+      "无法"
+    ]
+  },
+  {
+    "id": "eval_031",
+    "question": "consumer lag持续上升怎么排查",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "kafka_consumer_lag"
+    ],
+    "expected_answer_contains": [
+      "Kafka消费积压"
+    ]
+  },
+  {
+    "id": "eval_032",
+    "question": "为什么增加消费者后Kafka积压没有改善",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kafka_consumer_lag"
+    ],
+    "expected_answer_contains": [
+      "Kafka消费积压"
+    ]
+  },
+  {
+    "id": "eval_033",
+    "question": "毒消息如何造成消费积压",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kafka_consumer_lag"
+    ],
+    "expected_answer_contains": [
+      "Kafka消费积压"
+    ]
+  },
+  {
+    "id": "eval_034",
+    "question": "Kafka rebalance频繁会带来什么影响",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kafka_consumer_lag"
+    ],
+    "expected_answer_contains": [
+      "Kafka消费积压"
+    ]
+  },
+  {
+    "id": "eval_035",
+    "question": "Pod的restartCount持续增加怎么查",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pod_restart"
+    ],
+    "expected_answer_contains": [
+      "Pod重启"
+    ]
+  },
+  {
+    "id": "eval_036",
+    "question": "Kubernetes OOMKilled应该看哪些指标",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pod_restart"
+    ],
+    "expected_answer_contains": [
+      "Pod重启"
+    ]
+  },
+  {
+    "id": "eval_037",
+    "question": "liveness probe导致容器重启怎么判断",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pod_restart"
+    ],
+    "expected_answer_contains": [
+      "Pod重启"
+    ]
+  },
+  {
+    "id": "eval_038",
+    "question": "提高memory limit为什么不一定能解决重启",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pod_restart"
+    ],
+    "expected_answer_contains": [
+      "Pod重启"
+    ]
+  },
+  {
+    "id": "eval_039",
+    "question": "Pod一直Pending怎么排查",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pending_pod"
+    ],
+    "expected_answer_contains": [
+      "Pod Pending"
+    ]
+  },
+  {
+    "id": "eval_040",
+    "question": "调度器提示Insufficient memory是什么意思",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pending_pod"
+    ],
+    "expected_answer_contains": [
+      "Pod Pending"
+    ]
+  },
+  {
+    "id": "eval_041",
+    "question": "PVC未绑定为什么会导致Pod Pending",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pending_pod"
+    ],
+    "expected_answer_contains": [
+      "Pod Pending"
+    ]
+  },
+  {
+    "id": "eval_042",
+    "question": "nodeSelector配置错误如何定位",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "kubernetes_pending_pod"
+    ],
+    "expected_answer_contains": [
+      "Pod Pending"
+    ]
+  },
+  {
+    "id": "eval_043",
+    "question": "发布后错误率升高应该如何回滚",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "deployment_rollback_sop"
+    ],
+    "expected_answer_contains": [
+      "发布回滚"
+    ]
+  },
+  {
+    "id": "eval_044",
+    "question": "数据库变更不向后兼容时能直接回滚应用吗",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "deployment_rollback_sop"
+    ],
+    "expected_answer_contains": [
+      "发布回滚"
+    ]
+  },
+  {
+    "id": "eval_045",
+    "question": "回滚前要保留哪些证据",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "deployment_rollback_sop"
+    ],
+    "expected_answer_contains": [
+      "发布回滚"
+    ]
+  },
+  {
+    "id": "eval_046",
+    "question": "回滚后需要验证哪些业务指标",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "deployment_rollback_sop"
+    ],
+    "expected_answer_contains": [
+      "发布回滚"
+    ]
+  },
+  {
+    "id": "eval_047",
+    "question": "gRPC DEADLINE_EXCEEDED是什么意思",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "grpc_timeout"
+    ],
+    "expected_answer_contains": [
+      "gRPC超时"
+    ]
+  },
+  {
+    "id": "eval_048",
+    "question": "如何定位gRPC调用哪一段慢",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "grpc_timeout"
+    ],
+    "expected_answer_contains": [
+      "gRPC超时"
+    ]
+  },
+  {
+    "id": "eval_049",
+    "question": "为什么增加deadline不一定能解决超时",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "grpc_timeout"
+    ],
+    "expected_answer_contains": [
+      "gRPC超时"
+    ]
+  },
+  {
+    "id": "eval_050",
+    "question": "gRPC重试怎样避免请求风暴",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "grpc_timeout"
+    ],
+    "expected_answer_contains": [
+      "gRPC超时"
+    ]
+  },
+  {
+    "id": "eval_051",
+    "question": "服务日志出现NXDOMAIN怎么排查",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "dns_resolution_failure"
+    ],
+    "expected_answer_contains": [
+      "DNS"
+    ]
+  },
+  {
+    "id": "eval_052",
+    "question": "只有一个节点DNS解析失败怎么办",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "dns_resolution_failure"
+    ],
+    "expected_answer_contains": [
+      "DNS"
+    ]
+  },
+  {
+    "id": "eval_053",
+    "question": "CoreDNS延迟高会造成什么现象",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "dns_resolution_failure"
+    ],
+    "expected_answer_contains": [
+      "DNS"
+    ]
+  },
+  {
+    "id": "eval_054",
+    "question": "为什么不建议把服务IP写死",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "dns_resolution_failure"
+    ],
+    "expected_answer_contains": [
+      "DNS"
+    ]
+  },
+  {
+    "id": "eval_055",
+    "question": "certificate has expired怎么处理",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "tls_certificate_expiry"
+    ],
+    "expected_answer_contains": [
+      "TLS证书"
+    ]
+  },
+  {
+    "id": "eval_056",
+    "question": "证书更新后为什么服务仍使用旧证书",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "tls_certificate_expiry"
+    ],
+    "expected_answer_contains": [
+      "TLS证书"
+    ]
+  },
+  {
+    "id": "eval_057",
+    "question": "TLS主机名不匹配怎么排查",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "tls_certificate_expiry"
+    ],
+    "expected_answer_contains": [
+      "TLS证书"
+    ]
+  },
+  {
+    "id": "eval_058",
+    "question": "如何设计证书到期告警",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "tls_certificate_expiry"
+    ],
+    "expected_answer_contains": [
+      "TLS证书"
+    ]
+  },
+  {
+    "id": "eval_059",
+    "question": "PostgreSQL只读副本返回旧数据怎么查",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "database_replication_lag"
+    ],
+    "expected_answer_contains": [
+      "复制延迟"
+    ]
+  },
+  {
+    "id": "eval_060",
+    "question": "WAL生成过快为什么会增加复制延迟",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "database_replication_lag"
+    ],
+    "expected_answer_contains": [
+      "复制延迟"
+    ]
+  },
+  {
+    "id": "eval_061",
+    "question": "业务要求写后立刻读应该访问主库还是副本",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "database_replication_lag"
+    ],
+    "expected_answer_contains": [
+      "复制延迟"
+    ]
+  },
+  {
+    "id": "eval_062",
+    "question": "备库磁盘慢如何影响replay lag",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "database_replication_lag"
+    ],
+    "expected_answer_contains": [
+      "复制延迟"
+    ]
+  },
+  {
+    "id": "eval_063",
+    "question": "数据库发生deadlock应该收集什么",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "database_deadlock"
+    ],
+    "expected_answer_contains": [
+      "数据库死锁"
+    ]
+  },
+  {
+    "id": "eval_064",
+    "question": "不同锁顺序为什么会死锁",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "database_deadlock"
+    ],
+    "expected_answer_contains": [
+      "数据库死锁"
+    ]
+  },
+  {
+    "id": "eval_065",
+    "question": "死锁能不能靠无限重试解决",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "database_deadlock"
+    ],
+    "expected_answer_contains": [
+      "数据库死锁"
+    ]
+  },
+  {
+    "id": "eval_066",
+    "question": "如何缩小数据库锁范围",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "database_deadlock"
+    ],
+    "expected_answer_contains": [
+      "数据库死锁"
+    ]
+  },
+  {
+    "id": "eval_067",
+    "question": "如何从大量慢SQL里找到优化重点",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "slow_query_sop"
+    ],
+    "expected_answer_contains": [
+      "慢查询"
+    ]
+  },
+  {
+    "id": "eval_068",
+    "question": "EXPLAIN ANALYZE生产执行有什么风险",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "slow_query_sop"
+    ],
+    "expected_answer_contains": [
+      "慢查询"
+    ]
+  },
+  {
+    "id": "eval_069",
+    "question": "N+1查询为什么会拖慢接口",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "slow_query_sop"
+    ],
+    "expected_answer_contains": [
+      "慢查询"
+    ]
+  },
+  {
+    "id": "eval_070",
+    "question": "索引是不是越多越好",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "slow_query_sop"
+    ],
+    "expected_answer_contains": [
+      "慢查询"
+    ]
+  },
+  {
+    "id": "eval_071",
+    "question": "Redis某个分片CPU特别高怎么查",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "redis_hot_key"
+    ],
+    "expected_answer_contains": [
+      "Redis热Key"
+    ]
+  },
+  {
+    "id": "eval_072",
+    "question": "如何安全定位Redis热Key",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_hot_key"
+    ],
+    "expected_answer_contains": [
+      "Redis热Key"
+    ]
+  },
+  {
+    "id": "eval_073",
+    "question": "热Key拆分解决什么问题",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_hot_key"
+    ],
+    "expected_answer_contains": [
+      "Redis热Key"
+    ]
+  },
+  {
+    "id": "eval_074",
+    "question": "本地缓存热Key要注意哪些风险",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_hot_key"
+    ],
+    "expected_answer_contains": [
+      "Redis热Key"
+    ]
+  },
+  {
+    "id": "eval_075",
+    "question": "Redis evicted_keys持续增长说明什么",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "redis_eviction"
+    ],
+    "expected_answer_contains": [
+      "Redis淘汰"
+    ]
+  },
+  {
+    "id": "eval_076",
+    "question": "maxmemory-policy怎么影响数据淘汰",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_eviction"
+    ],
+    "expected_answer_contains": [
+      "Redis淘汰"
+    ]
+  },
+  {
+    "id": "eval_077",
+    "question": "大Key如何导致Redis内存压力",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_eviction"
+    ],
+    "expected_answer_contains": [
+      "Redis淘汰"
+    ]
+  },
+  {
+    "id": "eval_078",
+    "question": "为什么只扩Redis内存可能还会复发",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "redis_eviction"
+    ],
+    "expected_answer_contains": [
+      "Redis淘汰"
+    ]
+  },
+  {
+    "id": "eval_079",
+    "question": "CPU不高但接口大量超时可能是线程池吗",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "thread_pool_exhaustion"
+    ],
+    "expected_answer_contains": [
+      "线程池耗尽"
+    ]
+  },
+  {
+    "id": "eval_080",
+    "question": "线程池队列持续增长怎么定位",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "thread_pool_exhaustion"
+    ],
+    "expected_answer_contains": [
+      "线程池耗尽"
+    ]
+  },
+  {
+    "id": "eval_081",
+    "question": "盲目扩大线程池有什么风险",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "thread_pool_exhaustion"
+    ],
+    "expected_answer_contains": [
+      "线程池耗尽"
+    ]
+  },
+  {
+    "id": "eval_082",
+    "question": "下游变慢如何拖垮上游线程池",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "thread_pool_exhaustion"
+    ],
+    "expected_answer_contains": [
+      "线程池耗尽"
+    ]
+  },
+  {
+    "id": "eval_083",
+    "question": "磁盘满会导致哪些服务异常",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "disk_full"
+    ],
+    "expected_answer_contains": [
+      "磁盘容量"
+    ]
+  },
+  {
+    "id": "eval_084",
+    "question": "空间没满但inode满了怎么排查",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "disk_full"
+    ],
+    "expected_answer_contains": [
+      "磁盘容量"
+    ]
+  },
+  {
+    "id": "eval_085",
+    "question": "删除日志后磁盘空间为什么没释放",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "disk_full"
+    ],
+    "expected_answer_contains": [
+      "磁盘容量"
+    ]
+  },
+  {
+    "id": "eval_086",
+    "question": "生产磁盘告警后的安全处理顺序",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "disk_full"
+    ],
+    "expected_answer_contains": [
+      "磁盘容量"
+    ]
+  },
+  {
+    "id": "eval_087",
+    "question": "HTTP 429应该怎么处理",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "api_rate_limit"
+    ],
+    "expected_answer_contains": [
+      "API限流"
+    ]
+  },
+  {
+    "id": "eval_088",
+    "question": "Retry-After头有什么作用",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "api_rate_limit"
+    ],
+    "expected_answer_contains": [
+      "API限流"
+    ]
+  },
+  {
+    "id": "eval_089",
+    "question": "指数退避为什么需要随机抖动",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "api_rate_limit"
+    ],
+    "expected_answer_contains": [
+      "API限流"
+    ]
+  },
+  {
+    "id": "eval_090",
+    "question": "提高API限额前为什么要检查下游容量",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "api_rate_limit"
+    ],
+    "expected_answer_contains": [
+      "API限流"
+    ]
+  },
+  {
+    "id": "eval_091",
+    "question": "Token莫名提前过期可能和时钟有关吗",
+    "category": "keyword",
+    "difficulty": "easy",
+    "ground_truth_doc_slugs": [
+      "clock_skew"
+    ],
+    "expected_answer_contains": [
+      "时钟漂移"
+    ]
+  },
+  {
+    "id": "eval_092",
+    "question": "系统时钟漂移为什么影响TLS",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "clock_skew"
+    ],
+    "expected_answer_contains": [
+      "时钟漂移"
+    ]
+  },
+  {
+    "id": "eval_093",
+    "question": "分布式日志时间线混乱怎么排查",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "clock_skew"
+    ],
+    "expected_answer_contains": [
+      "时钟漂移"
+    ]
+  },
+  {
+    "id": "eval_094",
+    "question": "为什么不建议手工大幅调整生产节点时间",
+    "category": "semantic",
+    "difficulty": "medium",
+    "ground_truth_doc_slugs": [
+      "clock_skew"
+    ],
+    "expected_answer_contains": [
+      "时钟漂移"
+    ]
+  },
+  {
+    "id": "eval_095",
+    "question": "公司今年年假有多少天",
+    "category": "not_in_kb",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "证据不足"
+    ]
+  },
+  {
+    "id": "eval_096",
+    "question": "食堂今天午餐是什么",
+    "category": "not_in_kb",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "证据不足"
+    ]
+  },
+  {
+    "id": "eval_097",
+    "question": "如何申请办公用品",
+    "category": "not_in_kb",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "证据不足"
+    ]
+  },
+  {
+    "id": "eval_098",
+    "question": "销售部门本季度目标是多少",
+    "category": "not_in_kb",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "证据不足"
+    ]
+  },
+  {
+    "id": "eval_099",
+    "question": "给我推荐一部电影",
+    "category": "not_in_kb",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "证据不足"
+    ]
+  },
+  {
+    "id": "eval_100",
+    "question": "财务报销需要谁审批",
+    "category": "not_in_kb",
+    "difficulty": "hard",
+    "ground_truth_doc_slugs": [],
+    "expected_answer_contains": [
+      "证据不足"
+    ]
+  }
 ]
