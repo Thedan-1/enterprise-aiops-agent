@@ -164,8 +164,16 @@ class PromptedLLMClient(LLMClient):
     def plan_next_action(
         self, query: str, intent: str, observations: list[ObservationRecord], available_tools: list[ToolSpec]
     ) -> PlannerDecision:
-        tools_desc = "\n".join(f"- {t.name}: {t.description}" for t in available_tools)
-        obs_desc = "\n".join(f"[{o.tool_name}] {o.result.summary}" for o in observations) or "(无)"
+        tools_desc = "\n".join(
+            f"- {t.name}: {t.description}; input_schema="
+            f"{json.dumps(t.input_schema, ensure_ascii=False, sort_keys=True)}"
+            for t in available_tools
+        )
+        obs_desc = "\n".join(
+            f"[{o.tool_name}] "
+            + (o.result.summary if o.result.success else f"调用失败: {o.result.error}")
+            for o in observations
+        ) or "(无)"
         prompt = (
             f"用户问题: {query}\n意图: {intent}\n可用工具:\n{tools_desc}\n\n已获得的观察:\n{obs_desc}\n\n"
             '严格输出JSON，不要多余文本: {"reasoning": "...", "tool_name": "xxx或null",'

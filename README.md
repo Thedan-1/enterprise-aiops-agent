@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Tests](https://img.shields.io/badge/tests-73%20passed-brightgreen)](#验证项目)
+[![Tests](https://img.shields.io/badge/tests-82%20passed-brightgreen)](#验证项目)
 [![Retrieval](https://img.shields.io/badge/Recall%405-0.9209-blue)](#真实评测结果)
 
 OpsPilot 面向企业内部开发和运维人员。当用户输入“订单服务最近大量 502”时，它不会直接让大模型凭经验回答，而是自主选择知识库、日志、服务指标和历史工单等只读工具，收集证据后再给出诊断、排查步骤、引用和置信度。
@@ -64,6 +64,8 @@ Agent Runtime 和 Retrieval Pipeline 是两个独立边界：Agent 决定**是�
 
 Tool 调用有单次硬超时、显式瞬时错误重试和指数退避；DeepSeek 对 429、5xx、网络超时最多尝试 3 次。意图识别、Planner 或答案生成最终失败时，API 返回结构化错误和人工升级建议，不把 Provider 异常直接暴露给用户。
 
+响应状态区分四种语义：`answered`（证据链完整）、`partial`（有相关证据但部分 Tool 失败/无权访问）、`abstained`（没有足够相关证据）和 `error`（系统/Provider 失败）。这避免正文写“证据不足”而顶部仍显示“已回答”。
+
 当流程分支、持久化恢复、人工审批或长任务状态明显复杂后，再考虑迁移 LangGraph；当前规模自行维护状态更透明，也更容易解释。
 
 ### 2. 可 Debug 的 Hybrid RAG
@@ -101,7 +103,7 @@ Retriever 的职责是从较大的候选集合中保持高 Recall；Reranker 使
 
 - HMAC 签名登录令牌；未设置 `AUTH_SECRET` 时每次演示进程生成临时密钥；
 - `operator / viewer / auditor` 角色与确定性工具白名单；
-- alpha / beta 租户数据作用域隔离；
+- alpha / beta 的知识库、日志、指标与工单服务作用域隔离；未知租户默认无数据权限；
 - Prompt Injection 基础拦截、输入长度限制和用户级滑动窗口限流；
 - JSONL 审计事件记录登录、对话结果和错误；
 - 不把模型输出当权限判断，不提供写数据库或执行 Shell 的 Tool。
@@ -195,7 +197,7 @@ docker compose up -d postgres
 ## 验证项目
 
 ```powershell
-# 73 个单元、集成、安全与边界测试
+# 82 个单元、集成、安全与边界测试
 .\.venv\Scripts\python -m pytest tests -q
 
 # 评测数据质量门禁

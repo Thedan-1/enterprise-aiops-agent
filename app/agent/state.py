@@ -37,7 +37,7 @@ class AgentState:
     observations: list[ObservationRecord] = field(default_factory=list)
     start_time: float = field(default_factory=time.time)
     timeout_s: float = 30.0
-    status: str = "running"  # running/answered/abstained/timeout/error
+    status: str = "running"  # running/answered/partial/abstained/timeout/error
     stop_reason: str = ""
 
     def remaining_budget(self, tool_name: str) -> int:
@@ -58,6 +58,12 @@ class AgentState:
             return True, "timeout"
         if self.remaining_budget(decision.tool_name) <= 0:
             return True, "tool_budget_exhausted"
+        if any(
+            observation.tool_name == decision.tool_name
+            and observation.tool_input == (decision.tool_input or {})
+            for observation in self.observations
+        ):
+            return True, "repeated_tool_call"
         return False, ""
 
     def elapsed_ms(self) -> float:

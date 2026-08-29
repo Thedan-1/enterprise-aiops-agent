@@ -28,7 +28,7 @@ class AgentRunResult:
     intent: str
     answer: str
     confidence: float
-    status: str  # answered / abstained / error
+    status: str  # answered / partial / abstained / error
     stop_reason: str
     iterations: int
     observations: list[ObservationRecord] = field(default_factory=list)
@@ -135,7 +135,12 @@ class AgentRuntime:
                 extra={"request_id": request_id, "stage": "validation"},
             )
             return self._llm_failure_result(state, "validation")
-        status = "answered" if validation.grounded else "abstained"
+        if not validation.grounded:
+            status = "abstained"
+        elif any(not observation.result.success for observation in state.observations):
+            status = "partial"
+        else:
+            status = "answered"
 
         return AgentRunResult(
             request_id=request_id,

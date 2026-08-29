@@ -130,6 +130,7 @@
   }
   .badge { font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 700; letter-spacing: 0.01em; }
   .badge.answered { background: var(--green-dim); color: var(--green); }
+  .badge.partial { background: var(--amber-dim); color: var(--amber); }
   .badge.abstained { background: var(--amber-dim); color: var(--amber); }
   .badge.error { background: var(--red-dim); color: var(--red); }
   .meta { font-size: 11px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
@@ -463,6 +464,7 @@ function clearPipelineTimers() {
 
 function statusLabel(status) {
   if (status === 'answered') return { text: '已回答', cls: 'answered', color: 'var(--green)' };
+  if (status === 'partial') return { text: '部分证据 · 需继续排查', cls: 'partial', color: 'var(--amber)' };
   if (status === 'abstained') return { text: '证据不足 · 已拒答', cls: 'abstained', color: 'var(--amber)' };
   return { text: status, cls: 'error', color: 'var(--red)' };
 }

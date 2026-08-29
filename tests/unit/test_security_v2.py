@@ -7,8 +7,11 @@ from app.security.guard import inspect_query
 from app.security.policy import allowed_tools, can_read_audit
 from app.security.rate_limit import SlidingWindowRateLimiter
 from app.core.types import Chunk
-from app.offline_app import scope_chunks_for_tenant
+from app.offline_app import scope_chunks_for_tenant, service_scope_for_tenant
 from app.security.audit import AuditEvent, AuditStore
+from app.agent.tools.log_query import LogQueryTool
+from app.agent.tools.service_metrics import ServiceMetricsTool
+from app.agent.tools.ticket_search import TicketSearchTool
 
 
 def test_login_and_verify_keeps_tenant_and_role():
@@ -81,6 +84,12 @@ def test_tenant_corpora_are_scoped_before_retrieval():
     assert scope_chunks_for_tenant(chunks, "unknown") == []
 
 
+def test_tenant_service_scope_is_explicit_and_fail_closed():
+    assert "order-service" in service_scope_for_tenant("alpha")
+    assert "order-service" not in service_scope_for_tenant("beta")
+    assert service_scope_for_tenant("unknown") == set()
+
+
 def test_auditor_only_sees_own_tenant_events(tmp_path):
     store = AuditStore(tmp_path / "audit.jsonl")
     store.append(AuditEvent("chat", "answered", "a", "alpha"))
@@ -88,3 +97,18 @@ def test_auditor_only_sees_own_tenant_events(tmp_path):
     rows = store.list_for_tenant("alpha")
     assert len(rows) == 1
     assert rows[0]["user_id"] == "a"
+
+
+@pytest.mark.parametrize("tool", [ServiceMetricsTool, LogQueryTool, TicketSearchTool])
+def test_tenant_scoped_tools_reject_cross_tenant_service_before_data_access(tool):
+    result = tool(allowed_services={"inventory-service"}).call(service="order-service")
+
+    assert result.success is False
+    assert "当前租户无权访问" in result.error
+
+
+def test_tenant_scoped_tool_allows_owned_service():
+    result = ServiceMetricsTool(allowed_services={"inventory-service"}).call(service="库存服务")
+
+    assert result.success is True
+    assert result.debug["service"] == "inventory-service"

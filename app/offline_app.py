@@ -51,6 +51,14 @@ def scope_chunks_for_tenant(chunks, tenant_id: str):
     return []
 
 
+def service_scope_for_tenant(tenant_id: str) -> set[str]:
+    scopes = {
+        "alpha": {"order-service", "payment-service", "user-service", "__self__"},
+        "beta": {"inventory-service"},
+    }
+    return set(scopes.get(tenant_id, set()))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging(log_file=LOG_FILE)
@@ -58,13 +66,19 @@ async def lifespan(app: FastAPI):
     embedder = get_embedder()
     reranker = get_reranker()
 
-    def runtime_for(tenant_chunks):
+    def runtime_for(tenant: str, tenant_chunks):
         pipeline = build_pipeline(tenant_chunks, embedder, reranker)
-        tools = [KnowledgeSearchTool(pipeline, doc_titles), LogQueryTool(), ServiceMetricsTool(), TicketSearchTool()]
+        service_scope = service_scope_for_tenant(tenant)
+        tools = [
+            KnowledgeSearchTool(pipeline, doc_titles),
+            LogQueryTool(allowed_services=service_scope),
+            ServiceMetricsTool(allowed_services=service_scope),
+            TicketSearchTool(allowed_services=service_scope),
+        ]
         return AgentRuntime(get_llm_client(), tools, settings.agent_max_iterations, settings.agent_timeout_s)
 
     app.state.agent_runtimes = {
-        tenant: runtime_for(scope_chunks_for_tenant(chunks, tenant)) for tenant in ("alpha", "beta")
+        tenant: runtime_for(tenant, scope_chunks_for_tenant(chunks, tenant)) for tenant in ("alpha", "beta")
     }
     app.state.auth = AuthService()
     app.state.rate_limiter = SlidingWindowRateLimiter(limit=10, window_s=60)

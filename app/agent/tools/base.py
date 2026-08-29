@@ -4,6 +4,7 @@
 一行代码——这是"Tool Layer"和"Agent Layer"边界划分的具体体现。
 """
 import time
+import inspect
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
@@ -31,6 +32,16 @@ class Tool(ABC):
     def call(self, **kwargs) -> ToolResult:
         """Apply a bounded timeout and retry only explicitly transient failures."""
         start = time.perf_counter()
+        try:
+            inspect.signature(self._call).bind(**kwargs)
+        except TypeError as exc:
+            return ToolResult(
+                success=False,
+                summary="",
+                error=f"invalid tool input: {exc}",
+                debug={"attempts": 0, "timed_out": False},
+                latency_ms=(time.perf_counter() - start) * 1000,
+            )
         result: ToolResult | None = None
         attempts = 0
         timed_out = False

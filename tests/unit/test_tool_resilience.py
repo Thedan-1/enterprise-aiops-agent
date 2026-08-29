@@ -52,3 +52,13 @@ def test_tool_timeout_becomes_failed_observation_instead_of_hanging_loop():
     assert result.debug["attempts"] == 1
     assert result.debug["timed_out"] is True
 
+
+def test_tool_rejects_unknown_input_before_adapter_execution():
+    tool = _FlakyTool()
+
+    result = tool.call(keyword="wrong-field")
+
+    assert result.success is False
+    assert "invalid tool input" in result.error
+    assert "keyword" in result.error
+    assert tool.calls == 0

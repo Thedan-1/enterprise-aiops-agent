@@ -1,12 +1,12 @@
 from app.agent.tools.base import Tool
 from app.agent.tools.service_metrics import _is_self_query
-from app.agent.tools.service_names import KNOWN_SERVICES, canonical_service_name
+from app.agent.tools.service_names import KNOWN_SERVICES, TenantScopedService, canonical_service_name
 from app.core.types import ToolResult
 from data.mock.logs import get_logs
 from data.real.self_logs import get_self_logs
 
 
-class LogQueryTool(Tool):
+class LogQueryTool(TenantScopedService, Tool):
     name = "log_query"
     description = (
         "查询指定服务在时间范围内的日志（默认ERROR级别）。"
@@ -16,6 +16,7 @@ class LogQueryTool(Tool):
 
     def _call(self, service: str, time_range: str = "last_10_minutes", level: str = "ERROR") -> ToolResult:
         if _is_self_query(service):
+            self.scoped_service_name(service, self_query=True)
             lines = get_self_logs(level=level, limit=20)
             summary = (
                 f"AIOps Agent自身运行日志: 最近{len(lines)}条{level}级别记录"
@@ -24,7 +25,7 @@ class LogQueryTool(Tool):
             )
             return ToolResult(success=True, summary=summary, debug={"raw_lines": lines})
 
-        canonical_service = canonical_service_name(service)
+        canonical_service = self.scoped_service_name(service)
         if canonical_service not in KNOWN_SERVICES:
             return ToolResult(
                 success=False,
