@@ -57,7 +57,7 @@ Agent Runtime 和 Retrieval Pipeline 是两个独立边界：Agent 决定**是�
 
 - `max_iterations`：限制推理轮数；
 - `tool_budget`：限制真实工具调用成本；
-- `total_timeout`：限制整次任务耗时；
+- `total_timeout`：在 Agent 各步骤之间检查协作式截止时间；Tool 与 LLM HTTP 客户端另有单次硬超时；
 - 去重与停止条件：避免同参数重复调用；
 - Tool Policy：模型只能建议动作，确定性策略层决定是否允许执行；
 - Graceful Degradation：部分工具不可用时，明确说明缺失信息并基于剩余证据回答。
@@ -230,6 +230,7 @@ scripts/            # 数据灌入、离线演示、评测与基准脚本
 - PostgreSQL + pgvector 路径尚待当前机器完成 Docker 复验；
 - 多轮会话表已设计，但多轮上下文策略尚未完成实验；
 - 端到端真实 LLM 延迟仍较高，主要来自串行 Planner/Answer 调用；
+- Agent 总截止时间目前是协作式检查，不能强制取消已进入不可中断底层调用的线程；生产版需使用可取消异步 I/O 并逐层传递 deadline；
 - 认证和审计适合演示安全边界，不替代企业 IdP、KMS 与集中审计平台；
 - 数据规模尚不足以证明 Milvus、Kafka、Kubernetes、Multi-Agent 或 GraphRAG 的必要性，因此没有引入。
 
