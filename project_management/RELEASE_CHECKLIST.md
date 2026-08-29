@@ -8,5 +8,6 @@
 - [x] Retrieval 冷/热延迟基线及原始结果保存。
 - [x] GitHub Actions CI。
 - [x] 最终测试（60 passed）与 tracked-file secret scan。
-- [ ] 推送 main 与 V2 分支。
-- [ ] 创建 PR 并确认 CI。
+- [x] 推送 main 与 V2 分支。
+- [x] 创建 PR #1。
+- [ ] CI 通过（外部阻塞：GitHub 账户 billing lock，job 未启动；本地 60 tests passed）。

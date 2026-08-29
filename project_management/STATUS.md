@@ -9,7 +9,7 @@
 | 身份、权限、多租户 | 完成（演示路径） | signed token / RBAC / isolated runtimes |
 | 安全与审计 | 完成（演示路径） | guard / limiter / JSONL audit / threat model |
 | 延迟基线与优化 | 完成 | cold/warm benchmark + TTL/LRU cache |
-| GitHub 公开交付 | 进行中 | CI / security policy / PR |
+| GitHub 公开交付 | 完成（CI 外部阻塞） | public repo / PR #1；Actions 因账号 billing lock 未启动 |
 
 ## V2 实际结果
 
@@ -17,6 +17,10 @@
 - 首次 Retrieval 平均：2159ms；重复 query 缓存命中平均：0.27ms。
 - 自动化测试：58 个通过（发布前仍以最终 CI 数量为准）。
 - 已验证：401 未登录、403 越权审计、审计员 tenant scope、Prompt Injection 阻断、正常问答。
+
+## 外部阻塞
+
+GitHub Actions run `33267197127` 没有进入 checkout 或 test 阶段。GitHub 返回：账户因 billing issue 被锁定，job 未启动。代码侧无法修复；账户解锁后对 PR 重新运行工作流即可。
 
 ## 每次提交前检查
 
