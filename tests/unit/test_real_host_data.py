@@ -59,3 +59,10 @@ def test_log_query_tool_accepts_chinese_business_service_name():
 
     assert result.success is True
     assert any("order-service" in line for line in result.debug["raw_lines"])
+
+
+def test_log_query_distinguishes_unknown_service_from_no_error_logs():
+    result = LogQueryTool().call(service="ghost-service")
+
+    assert result.success is False
+    assert result.error == "未识别服务 'ghost-service'，无法确认是否存在错误日志"

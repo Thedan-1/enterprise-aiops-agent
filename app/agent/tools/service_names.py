@@ -12,6 +12,8 @@ SERVICE_ALIASES: dict[str, tuple[str, ...]] = {
     "user-service": ("user-service", "user_service", "用户服务"),
 }
 
+KNOWN_SERVICES = frozenset(SERVICE_ALIASES)
+
 
 def canonical_service_name(value: str) -> str:
     normalized = value.strip().lower()
@@ -19,4 +21,3 @@ def canonical_service_name(value: str) -> str:
         if any(alias in normalized for alias in aliases):
             return canonical
     return normalized
-

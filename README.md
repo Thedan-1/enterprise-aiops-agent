@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Tests](https://img.shields.io/badge/tests-62%20passed-brightgreen)](#验证项目)
+[![Tests](https://img.shields.io/badge/tests-64%20passed-brightgreen)](#验证项目)
 [![Retrieval](https://img.shields.io/badge/Recall%405-0.9363-blue)](#真实评测结果)
 
 OpsPilot 面向企业内部开发和运维人员。当用户输入“订单服务最近大量 502”时，它不会直接让大模型凭经验回答，而是自主选择知识库、日志、服务指标和历史工单等只读工具，收集证据后再给出诊断、排查步骤、引用和置信度。
@@ -193,7 +193,7 @@ docker compose up -d postgres
 ## 验证项目
 
 ```powershell
-# 62 个单元、集成、安全与边界测试
+# 64 个单元、集成、安全与边界测试
 .\.venv\Scripts\python -m pytest tests -q
 
 # 评测数据质量门禁

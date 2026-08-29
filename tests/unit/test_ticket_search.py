@@ -30,3 +30,11 @@ def test_ticket_search_tool_success_with_no_results():
     result = tool.call(service="nonexistent-service")
     assert result.success is True
     assert result.debug["tickets"] == []
+
+
+def test_ticket_tool_accepts_chinese_business_service_name():
+    result = TicketSearchTool().call(service="订单服务")
+
+    assert result.success is True
+    assert result.debug["tickets"]
+    assert all(ticket["service"] == "order-service" for ticket in result.debug["tickets"])
