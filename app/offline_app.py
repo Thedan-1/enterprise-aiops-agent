@@ -17,7 +17,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.agent.loop import AgentRuntime
 from app.agent.tools.kb_search import KnowledgeSearchTool
@@ -92,7 +92,7 @@ app = FastAPI(title="OpsPilot (Offline Demo Mode)", lifespan=lifespan)
 
 
 class ChatRequest(BaseModel):
-    query: str
+    query: str = Field(min_length=1, max_length=4000)
 
 
 class LoginRequest(BaseModel):

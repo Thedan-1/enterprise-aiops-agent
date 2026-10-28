@@ -1,18 +1,19 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.agent.loop import AgentRuntime
 from app.db.models import AgentRun, RetrievalLog, ToolCall
 from app.db.session import get_session
+from app.security.guard import inspect_query
 
 router = APIRouter()
 
 
 class ChatRequest(BaseModel):
-    query: str
+    query: str = Field(min_length=1)
 
 
 class ChatResponse(BaseModel):
@@ -35,6 +36,10 @@ def chat(
     runtime: AgentRuntime = Depends(get_agent_runtime),
     session: Session = Depends(get_session),
 ):
+    guard = inspect_query(body.query)
+    if not guard.allowed:
+        raise HTTPException(status_code=400, detail=guard.reason)
+
     request_id = str(uuid.uuid4())
     result = runtime.run(body.query, request_id=request_id)
     _persist_run(session, result)
